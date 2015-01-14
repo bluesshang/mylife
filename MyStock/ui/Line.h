@@ -32,19 +32,6 @@ public:
     }
     virtual VOID Draw(LDC& dc, AxisInfo& ai)
     {
-        //SIZE wndExt, viewExt;
-        //dc.GetWindowExtEx(&wndExt);
-        //dc.GetViewportExtEx(&viewExt);
-        //int width = 1;//(int)((float)viewExt.cx / (float)wndExt.cx);
-
-        /* set 1:1 scale on x-axis */
-        //dc.SetWindowExt(1, wndExt.cy);
-        //dc.SetViewportExt(1, viewExt.cy);
-
-        //LSTR str;
-        //str.Format(_T("Line::Draw, total %d points, min %d, max %d"), _dv->Size(), _dv->GetMinInt(), _dv->GetMaxInt());
-        //dc.TextOut(0, 0, str);
-
         _DV& dv = *_dv;
         //int mx = dv.GetMaxInt();
         //int mi = dv.GetMinInt();

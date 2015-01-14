@@ -48,6 +48,7 @@ public:
         pc = &cell.CellAt(0, CELLPOS_END);
         pc->Split(sizeof(H1)/sizeof(H1[0]), sizeof(W1)/sizeof(W1[0]), W1, H1);
 #endif
+        //pc->CreateTabWnd(this, LTS_LEFT);
         LRect rc(0, 0, 100, 200);
         // cells(1,0)->cells(0,0)->cells(0,0); cells({1,0},{0,0},{0,0})
         // LWndCell &cell0 = cell.cells->cell(1, 0).cells->cell(0, 0).cells->cell(0, 0);
@@ -60,6 +61,7 @@ public:
 
         // LWndCell &cell1 = cell.CellAt(MKCELLPOS(1,0), MKCELLPOS(0,1), CELLPOS_END);
         LFrameCell &cell1 = cell.cell(0, 1);
+        cell1.CreateTabWnd(this, LTS_LEFT);
         wnd1 = new LWndDrawView;
         wnd1->CreateChild(this, _T("FavoritedStock right"), rc, 1029, 0);
         cell1.AddWnd(wnd1);

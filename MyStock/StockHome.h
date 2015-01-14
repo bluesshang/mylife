@@ -54,7 +54,7 @@ class StockHome :
     FavoritedStock *wndFav;
     LDVTable tblRltvStocks;
     LListView lvTest;
-    LAxisView avKLine, avVol;
+    LAxisView avKLine, avVol, avMcad;
 
     LSyncMsgObj msgSync;
     DVS *_ds;
@@ -126,7 +126,7 @@ public:
         wndFav->SetFrameBorderWidth(3);
         wndFav->SetFrameBorderColor(RGB(0, 0, 128));
         wndFav->CreateChild(this, _T("favorited"), rc, 1028, 0);
-        cell0.AddWnd(wndFav, _T("Nested Favorited Stocks"));
+        cell0.AddWnd(wndFav, _T("Nested Favorited Stocks"), RGB(255, 255, 255));
 
         //GetCellClientRect(cell0, rc);
         wnd0 = new LWndDrawView;
@@ -148,8 +148,11 @@ public:
 
         msgSync.Add(&avVol);
         msgSync.Add(&avKLine);
+        msgSync.Add(&avMcad);
 
         avVol.CreateChild(this, _T("Volume"), rc, 0, 0, LVS_NO_STRETCH_CANVAS);
+        avMcad.SetBackgroundColor(RGB(255, 255, 255));
+        avMcad.CreateChild(this, _T("MCAD"), rc, 0, 0, LVS_NO_STRETCH_CANVAS);
 
         //avKLine._wndDragSync = &wndSync;
         avKLine.SetBackgroundColor(RGB(214, 219, 233));
@@ -204,8 +207,18 @@ public:
             ruler->CreateChild(&avVol, _T("LAxisRuler LEFT"), rcRuler);
             //ruler->SetData(&(*_ds)[_T("Volume")]);
             avVol.AddRuler(ruler);
-        }
 
+            ruler = new LAxisRuler(LAxisRuler::RIGHT);
+            rcRuler.right = 100;
+            ruler->CreateChild(&avMcad, _T("LAxisRuler RIGHT"), rcRuler);
+            avMcad.AddRuler(ruler);
+
+            ruler = new LAxisRuler(LAxisRuler::LEFT);
+            rcRuler.right = 20;
+            ruler->CreateChild(&avMcad, _T("LAxisRuler LEFT"), rcRuler);
+            //ruler->SetData(&(*_ds)[_T("Volume")]);
+            avMcad.AddRuler(ruler);
+        }
 
         cell0.AddWnd(&avKLine);
 
@@ -228,8 +241,8 @@ public:
         msgSync.Add(wnd3);
         wnd3->CreateChild(this, _T("RSI"), rc, 1028, 0);
         // cell1.AddWnd(wnd3);
+        cell1.AddWnd(&avMcad, _T("MCAD"));
         cell1.AddWnd(wnd3, _T("KDJ"));
-        cell1.AddWnd(wnd3, _T("MCAD"));
         cell1.AddWnd(wnd3, _T("EMA"));
         cell1.AddWnd(wnd3, _T("More Indicators ..."));
 
@@ -286,7 +299,7 @@ public:
 
         // LWndCell &cell1 = cell.CellAt(MKCELLPOS(1,0), MKCELLPOS(0,1), CELLPOS_END);
         LFrameCell &cell3 = cell.cell(0, 1);
-        cell3.CreateTabWnd(this, LTS_BOTTOM, WS_VISIBLE | WS_CHILD | WS_BORDER);
+        cell3.CreateTabWnd(this, LTS_BOTTOM, WS_VISIBLE | WS_CHILD/* | WS_BORDER*/);
         wndTodo = new LWndTodo;
         wndTodo->CreateChild(this, _T("To do list"), rc, 1029, 0, LVS_NO_STRETCH_CANVAS);
         cell3.AddWnd(wndTodo, _T("TODO"));
@@ -344,6 +357,9 @@ public:
             }
 
             avVol.AddLine(new VolLine(&(*_ds)[_T("Volume")]));
+
+            _DV *ma30 = (*_ds)[_T("Close")].MA(30);
+            avMcad.AddLine(new Line(ma30, RGB(0, 0, 200), _T("MA30")));
 
         }
         return 0;

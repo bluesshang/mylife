@@ -11,7 +11,9 @@
 
 #define LTS_BOTTOM  1
 #define LTS_TOP     2
-#define LTS_CENTER  4
+#define LTS_LEFT    4
+#define LTS_RIGHT   8
+#define LTS_CENTER  0x10
 
 typedef struct tagLTABITEM : public LRectStr
 {
@@ -103,7 +105,8 @@ public:
             LFont ft(dc);
             ft.CreateFont(_T("Tahoma"), 13, FW_BOLD);
             //rcClient.left += 10;
-            dc.LayoutStrings<LTABITEM>(_tabs, rcClient, rcClient, 10, TRUE, NULL, rcClient.Height());
+            dc.LayoutStrings<LTABITEM>(_tabs, rcClient, rcClient, 10, TRUE, NULL, 
+                rcClient.Height(), (_uCtrlStyle & (LTS_LEFT | LTS_RIGHT)) ? TRUE : FALSE);
             //_rcBound.InflateRect(2, 2);
 
             // ResetTrackingRngs();
@@ -118,16 +121,31 @@ public:
             LBrush br(dc);
             LFont ft(dc);
             LPen pen(dc);
-            ft.CreateFont(_T("Tahoma"), 13, LTI_STATUS_SELECTED & ti.nStatus ? FW_BOLD : FW_NORMAL);
-            br.CreateSolidBrush((LTI_STATUS_SELECTED & ti.nStatus) ? ti.clrSelected : RGB(255, 255, 255));
+            ft.CreateFont(_T("Tahoma"), 13, 
+                LTI_STATUS_SELECTED & ti.nStatus ? FW_BOLD : FW_NORMAL, LFont::CLR_NOT_SPECIFIED,
+                (_uCtrlStyle & (LTS_LEFT | LTS_RIGHT)) ? 900 : 0);
+            COLORREF clrFill = _clrBkgrnd;
+            //clrFill = RGB(230, 230, 230);
+            br.CreateSolidBrush((LTI_STATUS_SELECTED & ti.nStatus) ? ti.clrSelected : clrFill);
             // br.CreateSolidBrush(RGB(255, 255, 255));
-            pen.CreatePen(PS_SOLID, 1, LTI_STATUS_SELECTED & ti.nStatus ? ti.clrSelected : RGB(255, 255, 255));
+            //clrFill = RGB(255, 0, 0);
+            pen.CreatePen(PS_SOLID, 1, LTI_STATUS_SELECTED & ti.nStatus ? ti.clrSelected : clrFill);
             dc.Rectangle(ti);
             // AddTrackingRng(ti.rc, i); // move to LayoutTabs ?
 
             dc.SetTextColor(LTI_STATUS_SELECTED & ti.nStatus ? ti.clrSelectedText/*RGB(255, 255, 255)*/ : 
                (_tiHover == &ti ? RGB(0, 0, 255) : 0));
-            dc.DrawText((LPCTSTR)ti,(RECT)ti, DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+            if (_uCtrlStyle & (LTS_LEFT | LTS_RIGHT))
+            {
+                LRect rc0 = ti;
+                //rc0.right = rc0.left;//rc0.Height();
+                // dc.TextOut(rc0.right - 2, rc0.top + 5, (LPCTSTR)ti);
+                dc.TextOut(rc0.left + 2, rc0.bottom - 5, (LPCTSTR)ti);
+                //rc0.InflateRect(20, 20);
+                //dc.DrawText((LPCTSTR)ti, rc0, DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+            }
+            else dc.DrawText((LPCTSTR)ti, (RECT)ti, DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+            //dc.TextOut(ti._rc.left, ti._rc.top, (LPCTSTR)ti);
 
             //LBrush br0(dc);
             //br0.CreateSolidBrush(RGB(255, 0, 0));

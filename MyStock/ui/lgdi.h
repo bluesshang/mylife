@@ -82,9 +82,9 @@ public:
 
 class LFont : public LGdiObject
 {
-    static const COLORREF CLR_NOT_SPECIFIED = 0xFFFFFFFF;
     COLORREF _clrOldText;
 public:
+    static const COLORREF CLR_NOT_SPECIFIED = 0xFFFFFFFF;
     LFont(HDC hdc = NULL) : LGdiObject(hdc) { _clrOldText = CLR_NOT_SPECIFIED; }
     ~LFont()
     {
@@ -93,9 +93,9 @@ public:
             SetTextColor(_hdc, _clrOldText);
         }
     }
-    BOOL CreateFont(LPCTSTR lpszFace, int nHeight, int fnWeight = FW_DONTCARE, COLORREF clrText = CLR_NOT_SPECIFIED)
+    BOOL CreateFont(LPCTSTR lpszFace, int nHeight, int fnWeight = FW_DONTCARE, COLORREF clrText = CLR_NOT_SPECIFIED, int nEscapement  = 0)
     {
-        m_hGdi = (HGDIOBJ) ::CreateFont(nHeight, 0, 0, 0, fnWeight, 
+        m_hGdi = (HGDIOBJ) ::CreateFont(nHeight, 0, nEscapement, 0, fnWeight, 
             FALSE, FALSE, FALSE, 
             DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, 
             DEFAULT_QUALITY, DEFAULT_PITCH, lpszFace);
@@ -372,13 +372,21 @@ public:
     VOID LayoutStrings(
         LArray<T>& strings, LRect& rcLimitBound, LRect& rcInit,
         INT nGap = 10, BOOL bLimittedInBound = TRUE,
-        LRect* rcMaxBound = NULL, INT nPreferHeight = 0)
+        LRect* rcMaxBound = NULL, INT nPreferHeight = 0, BOOL vertLayout = FALSE)
     {
         int N = strings.Count();
         int i, wBound;
         LArray<float> widths(N + 1);
         LArray<float> heights(N + 1);
         INT lenTotal = 0, t;
+        LRect rcLimitBound0 = rcLimitBound, rcInit0 = rcInit;
+
+        if (vertLayout == TRUE) {
+            rcLimitBound0.right = rcLimitBound.left + rcLimitBound.Height();
+            rcLimitBound0.bottom = rcLimitBound.top + rcLimitBound.Width();
+            rcInit0.right = rcInit.left + rcInit.Height();
+            rcInit0.bottom = rcInit.top + rcInit.Width();
+        }
 
         /* get the orignal width and height of each string */
         for (i = 0; i < N; i++)
@@ -391,7 +399,7 @@ public:
             lenTotal += rc.Width();
         }
 
-        wBound = rcLimitBound.Width();
+        wBound = rcLimitBound0.Width();
         if (TRUE == bLimittedInBound && lenTotal > wBound)
         {   /* re-adjust the size of tab item */
             for (i = 0; i < N; i++)
@@ -400,11 +408,11 @@ public:
             }
         }
 
-        t = rcInit.left;
+        t = rcInit0.left;
         for (i = 0; i < N; i++)
         {
             LRect& rc = strings[i]; //_tabs[i].rc;
-            rc.top = rcInit.top;
+            rc.top = rcInit0.top;
             rc.bottom = rc.top + max(nPreferHeight,(INT)heights[i]);// rcMaxBound.bottom;
             rc.left = t;
             rc.right = rc.left +(INT)widths[i];
@@ -416,10 +424,21 @@ public:
             for (i = 0; i < N; i++)
             {
                 LRect& rc = strings[i];
-                rc.right = min(rc.right, rcLimitBound.right);
+                rc.right = min(rc.right, rcLimitBound0.right);
             }
             if (lenTotal > wBound && i > 0)
-                strings[i - 1].right = rcLimitBound.right;
+                strings[i - 1].right = rcLimitBound0.right;
+        }
+
+        if (vertLayout == TRUE) {
+            for (i = 0; i < N; i++) {
+                LRect& rc = strings[i];
+                LRect rcTmp = rc;
+                rc.left = rcInit.left;
+                rc.right = rc.left + rcInit.Width();
+                rc.top = rcTmp.left;
+                rc.bottom = rc.top + rcTmp.Width();
+            }
         }
 
         if (NULL != rcMaxBound)

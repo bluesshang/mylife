@@ -84,7 +84,7 @@ public:
         // dc.TextOut(0, 0, _T("LMenu::DrawLayer"));
         dc.SetBkMode(TRANSPARENT);
         LFont ft(dc);
-        ft.CreateFont(_T("Times New Roman"), 20, FW_BOLD);
+        ft.CreateFont(_T("Times New Roman"), 19, FW_BOLD);
 
         if ((REDRAW_CALCULATE & uFlags) && _items.Count() > 0)
         {

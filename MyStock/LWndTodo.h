@@ -81,8 +81,8 @@ public:
     {
         __super::OnCreate(lpcs);
 
-        // _cachedLayer->clrBkgrnd = RGB(255, 255, 255);
-        _layers[0]->clrBkgrnd = RGB(239, 228, 176);
+        _cachedLayer->clrBkgrnd = RGB(255, 255, 255);
+        // _layers[0]->clrBkgrnd = RGB(239, 228, 176);
         _layers[0]->transparency = 0;
         return 0;
     }

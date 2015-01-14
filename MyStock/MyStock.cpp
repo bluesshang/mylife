@@ -75,17 +75,17 @@ public:
         m_stkFav = NULL;
         m_menuMain = NULL;
         m_viewTest0 = NULL;
-        {
-            struct trk t;
-            AAA a0;
-            t.a = &a0;
-            t.fn0 = &AAA::foo;
-            void(AAA::*fn1)(VOID)= &AAA::foo;
-               (a0.*fn1)();
-           (a0.*(t.fn0))();
-            //(t.a->*fn0)();
-           (t.a->*(t.fn0))();
-        }
+        //{
+        //    struct trk t;
+        //    AAA a0;
+        //    t.a = &a0;
+        //    t.fn0 = &AAA::foo;
+        //    void(AAA::*fn1)(VOID)= &AAA::foo;
+        //       (a0.*fn1)();
+        //   (a0.*(t.fn0))();
+        //    //(t.a->*fn0)();
+        //   (t.a->*(t.fn0))();
+        //}
     }
 
     ~MyStockApp()
@@ -144,7 +144,7 @@ public:
 
         // pc = cell.cell(MKCELLPOS(1,0),CELLPOS_END);
         pc = cell.cell(1, 0);
-        pc->CreateTabWnd(this, LTS_TOP);
+        pc->CreateTabWnd(this, LTS_LEFT);
 
         // wndTodo = new LWndTodo;
         wndTodo.SetBackgroundColor(RGB(130, 121, 79));
@@ -181,7 +181,7 @@ public:
         stkHome3.SetFrameBorderWidth(1);
         // stkHome3.CreateChild(this, _T("Frame:Home(SZ000043)"), rc, 1027, 0, LFS_OVERLAP_FRAME_BORDER);
         stkHome3.CreateChild(this, _T("Frame:Home(SZ000043)"), rc, 1027, 0);
-        pc->AddWnd(&stkHome3, NULL);
+        pc->AddWnd(&stkHome3, NULL, RGB(255, 255, 255));
 
         pc->SetActiveTabWnd(4);
 #if 0

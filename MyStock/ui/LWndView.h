@@ -747,7 +747,7 @@ public:
         if (_uCtrlStyle & LVS_NO_HORZ_SCROLLBAR)
             layerFlags |= LAYER_NO_HSCROLLBAR;
 
-        Layer *layer = new Layer(Layer::BOTTOM, RGB(255, 255, 255), _T("BOTTOM"), 100, layerFlags);
+        Layer *layer = new Layer(Layer::BOTTOM, RGB(251, 251, 251), _T("BOTTOM"), 100, layerFlags);
         layer->Create(this, lpcs->cx, lpcs->cy);
         _layers.Add(layer);
 
@@ -985,7 +985,7 @@ public:
             Layer *layer = _layers[i];
             if (layer == _curLayer)
                 continue;
-            layer->BitBlt(_cachedLayer->dc, layer != _curLayer ? ptZero : _ptDragDlt);
+            layer->BitBlt(_cachedLayer->dc, /*layer != _curLayer ? ptZero : */_ptDragDlt);
         }
 _curLayer->BitBlt(_cachedLayer->dc, _ptDragDlt); /* draw the selected layer at the most top */
         /* draw tracking layer */
@@ -1094,11 +1094,11 @@ _curLayer->DrawScrollBar(_cachedLayer->dc, _ptDragDlt);
                 }
 #endif
                 //UpdateCanvasOffset();
-                _curLayer->offset -= _ptDragDlt;
-                //for (int i = 0; i < _layers.Count(); i++) {
-                //    Layer *layer = _layers[i];
-                //    layer->offset -= _ptDragDlt;
-                //}
+                //_curLayer->offset -= _ptDragDlt;
+                for (int i = 0; i < _layers.Count(); i++) {
+                    Layer *layer = _layers[i];
+                    layer->offset -= _ptDragDlt;
+                }
                 _ptDragDlt.x = 0;
                 _ptDragDlt.y = 0;
             }
@@ -1178,11 +1178,11 @@ _curLayer->DrawScrollBar(_cachedLayer->dc, _ptDragDlt);
             if (LVIEW_DRAG_DROP == _eDragMode)
             {
                 // UpdateCanvasOffset();
-                _curLayer->offset -= _ptDragDlt;
-                //for (int i = 0; i < _layers.Count(); i++) {
-                //    Layer *layer = _layers[i];
-                //    layer->offset -= _ptDragDlt;
-                //}
+                //_curLayer->offset -= _ptDragDlt;
+                for (int i = 0; i < _layers.Count(); i++) {
+                    Layer *layer = _layers[i];
+                    layer->offset -= _ptDragDlt;
+                }
                 SyncMouseDragDrop(LVIEW_MOUSESYNC_DRAGEND, _ptDragDlt);
                 // SyncMouseDragDrop(LVIEW_MOUSESYNC_DRAGGING, pt);
                 _ptDragDlt.x = 0;
@@ -1603,6 +1603,55 @@ public:
             LPen pen0(dc);
             pen0.CreatePen(_rcId == i ? PS_SOLID : PS_DOT, 1, RGB(255, 0, 0));
             dc.Rectangle(_rcTracks[i]);
+        }
+
+        {
+            LRect rc = _rcClient;
+            rc.InflateRect(-20, -20);
+            dc.Rectangle(rc);
+            int x = rc.left + rc.Width() / 2;
+            int y = rc.top + rc.Height() / 2;
+            int angle[] = {0, 900, 1800, 2700};
+            for (int i = 0; i < sizeof(angle)/sizeof(angle[0]); i++) {
+                LFont ft(dc);
+                ft.CreateFont(_T("Tahoma"), 20, 
+                    FW_NORMAL, LFont::CLR_NOT_SPECIFIED,
+                    angle[i]);
+                rc.left = x;
+                rc.top = y;
+                rc.right = x + 200;
+                rc.bottom = y + 200;
+                //dc.DrawText(_T("::Hello world!"), rc, DT_CENTER/* | DT_VCENTER*/ | DT_SINGLELINE);
+                //dc.TextOut(x, y, _T("Hello world!"));
+            }
+
+            LFont ft(dc);
+            ft.CreateFont(_T("Tahoma"), 20, 
+                FW_NORMAL, LFont::CLR_NOT_SPECIFIED,
+                900);
+            rc.left = y;
+            rc.right = y - 100;
+            rc.right = max(rc.right, 0);
+            rc.top = x;
+            rc.bottom = x + 30;
+
+            rc.left = x + 100;
+            rc.right = x;
+            rc.bottom = 0;
+            rc.top = y;
+
+            dc.Rectangle(rc);
+            //LRect rc2;
+            //dc.CalcTextRect(_T("::Hello world!"), rc2);
+            //dc.Rectangle(rc2);
+            dc.DrawText(_T("::Hello world!"), rc, DT_CENTER | /*DT_VCENTER | */DT_SINGLELINE);
+            //dc.TextOut(x, y, _T("Hello world!"));
+
+            dc.MoveTo(x, 0);
+            dc.LineTo(x, _rcClient.bottom);
+            dc.MoveTo(0, y);
+            dc.LineTo(_rcClient.right, y);
+
         }
 #if 0
         rc.top = rc.bottom - 100;

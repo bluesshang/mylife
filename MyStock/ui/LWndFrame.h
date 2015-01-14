@@ -417,7 +417,8 @@ public:
             rcFrame = fc.rc;
             rcFrame.InflateRect(t0, t0);
 
-            if (LTS_BOTTOM & c.wndTabs->GetCtrlStyle())
+            UINT32 ctrlStyle = c.wndTabs->GetCtrlStyle();
+            if (ctrlStyle & LTS_BOTTOM)
             {
                 rcTab.top = rcTab.bottom - nTabHeight;
                 rcTab.top = max(rcTab.top, 0);
@@ -428,7 +429,7 @@ public:
                 rcFrame.bottom = rcWnd.bottom;
                 rcFrameInner.bottom = rcWnd.bottom;
             }
-            else
+            else if (ctrlStyle & LTS_TOP)
             {
                 rcTab.bottom = rcTab.top + nTabHeight;
                 rcTab.bottom = min(rcTab.bottom, rcWnd.bottom);
@@ -436,6 +437,15 @@ public:
                 rcWnd.top = min(rcWnd.top, rcWnd.bottom);
                 rcFrame.top = rcWnd.top;
                 rcFrameInner.top = rcWnd.top;
+            }
+            else if (ctrlStyle & LTS_LEFT)
+            {
+                rcTab.right = rcTab.left + nTabHeight; /* TODO: use nTabWidth instead? */
+                rcTab.right = min(rcTab.right, rcWnd.right);
+                rcWnd.left += nTabHeight;
+                rcWnd.left = min(rcWnd.left, rcWnd.right);
+                rcFrame.left = rcWnd.left;
+                rcFrameInner.left = rcWnd.left;
             }
         }
     }

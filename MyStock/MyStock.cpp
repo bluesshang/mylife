@@ -246,17 +246,6 @@ int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
     _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
     _CrtSetBreakAlloc(1);
 
-    //{
-        //DV<int> idv(20);
-        //DV<LSTR> sdv(10);// , NULL, NULL, _T("%s"));
-        //idv[10] = 20;
-        //sdv[4] = _T("this is a string");
-        //LSTR str;
-        //idv.GetText(10, str);
-        //sdv.GetText(4, str, _T("%s"));
-        //str = sdv[1];
-        //str = sdv[4];
-    //}
     //__asm int 3;
     //int *p = new int[20];
     //int *t = (int*)malloc(40);

@@ -40,20 +40,6 @@ public:
     }
 
 };
-class AAA
-{
-public:
-    void foo() 
-    {
-        printf("\r\nAAA::foo");
-    }
-};
-struct trk
-{
-    AAA* a;
-    void(AAA::*fn0)();
-};
-
 
 class MyStockApp : public LWndFrame<MyStockApp>
 {
@@ -220,7 +206,7 @@ public:
         // LWndCell &cell0 = cell.CellAt(MKCELLPOS(1,0), MKCELLPOS(0,0), MKCELLPOS(0, 0), CELLPOS_END);
         LWndCell &cell0 = cell.CellAt(0x10000, 0, 0, CELLPOS_END);
         //GetCellClientRect(cell0, rc);
-        wnd0->Create(*this, WS_EX_WINDOWEDGE, WS_VISIBLE | /*WS_BORDER |*/ WS_CHILD, _T("LWndDrawView ��ͼ"), rc, 1027, 0);
+        wnd0->Create(*this, WS_EX_WINDOWEDGE, WS_VISIBLE | /*WS_BORDER |*/ WS_CHILD, _T("LWndDrawView ÊÓÍ¼"), rc, 1027, 0);
         cell0.AddWnd(wnd0);
 
         wnd0 = new LWndDrawView;

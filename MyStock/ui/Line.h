@@ -33,20 +33,6 @@ public:
     virtual VOID Draw(LDC& dc, AxisInfo& ai)
     {
         _DV& dv = *_dv;
-        //int mx = dv.GetMaxInt();
-        //int mi = dv.GetMinInt();
-        //int cy = ai.rc.bottom;
-        //double scale = (double)cy / (double)(mx - mi);
-
-        //_DV& dv = *_dv;
-
-                ////if (i == 200) {
-                //    int x = 200 * VERTEX_W, y = dv[200];
-                //    LRect rc = {x, y, x, y};
-                //    rc.InflateRect(VERTEX_W / 2, 200);
-                //    ////dc.Ellipse(rc);
-                //    dc.Rectangle(rc);
-                ////}
         LPen pen(dc);
         pen.CreatePen(PS_SOLID, 1, _color);
         // dc.MoveTo(0, dv[0]);

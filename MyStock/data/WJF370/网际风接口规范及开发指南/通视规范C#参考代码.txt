@@ -1,0 +1,1159 @@
+通视实时服务器源码  
+
+tom_sh   Senator    Join Date: 2005-01-29  Location: 深圳  Age: 39  Posts: 478    
+ 
+using System;
+using System.Runtime.InteropServices;
+using System.Collections;
+using System.Drawing;
+using System.ComponentModel;
+using System.Windows.Forms;
+using System.Data;
+using System.IO;
+using System.Threading;
+using System.Text;
+using Excel;
+
+
+namespace TSRTD
+{
+/// <summary>
+/// Class1 的摘要说明。
+/// </summary>
+[ProgId("RTDServer.Tongshi"),ComVisible(true)]
+public class RTDServer:IRtdServer
+{
+private Hashtable QuoteCache=Hashtable.Synchronized(new Hashtable());
+private Hashtable TopicTable=Hashtable.Synchronized(new Hashtable());
+private ArrayList SymbolMonitor=new ArrayList ();
+
+private IRTDUpdateEvent m_xlRTDUpdate;
+protected TongshiWindow fTSdrv;
+
+
+//
+public RTDServer()
+{
+//
+// TODO: 在此处添加构造函数逻辑
+//
+Win32.MessageBox(0, "（软）通视卡实时数据服务器 tom_sh@163.com出品", "程序信息", 0);
+
+fTSdrv=new TongshiWindow();
+fTSdrv.OnQuote+=new TSQuoteEventHandler(fTSdrv_OnQuote);
+
+}
+#region IRtdServer 成员
+
+public void ServerTerminate()
+{
+// TODO: 添加 RTDServer.ServerTerminate 实现
+m_xlRTDUpdate=null;
+if(fTSdrv.Drvloaded==true)
+{
+fTSdrv.DrvQuit();
+}
+}
+
+public int Heartbeat()
+{
+// TODO: 添加 RTDServer.Heartbeat 实现
+return 1;
+}
+
+public void DisconnectData(int TopicID)
+{
+// TODO: 添加 RTDServer.DisconnectData 实现
+if(TopicTable.ContainsKey(TopicID))
+{
+TopicTable.Remove(TopicID);
+}
+
+}
+
+public Array RefreshData(ref int TopicCount)
+{
+// TODO: 添加 RTDServer.RefreshData 实现
+
+object[,] aRetVal=new object [2,TopicTable.Count];
+TopicCount=TopicTable.Count;
+for(int i=0;i<TopicTable.Count;i++)
+{
+// RCV_REPORT_STRUCTExV3 report=(RCV_REPORT_STRUCTExV3)QuoteCache[SymbolMonitor[i]];
+aRetVal[0,i]=((RTDData)TopicTable[i]).TopicID;
+aRetVal[1,i]=((RTDData)TopicTable[i]).Data;
+}
+return aRetVal;
+}
+
+public int ServerStart(IRTDUpdateEvent CallbackObject)
+{
+// TODO: 添加 RTDServer.ServerStart 实现
+m_xlRTDUpdate = CallbackObject;
+if(!fTSdrv.Drvloaded)
+{
+fTSdrv.DrvInit();
+}
+
+return 1;
+}
+
+public object ConnectData(int TopicID, ref Array Strings, ref bool GetNewValues)
+{
+// TODO: 添加 RTDServer.ConnectData 实现
+string strType,strField, strTicker;
+RTDData objRTDData;
+
+GetNewValues = true;
+try
+{
+strType =((string)Strings.GetValue(0)).ToUpper();
+strTicker =((string)Strings.GetValue(1)).ToUpper();
+strField = ((string)Strings.GetValue(2)).ToLower();
+
+
+
+switch(strType)
+{
+case "TICK":
+if(!TopicTable.ContainsKey(TopicID))
+{
+objRTDData=new RTDData (strTicker,strType,strField);
+TopicTable.Add(TopicID,objRTDData);
+}
+else
+{
+objRTDData=(RTDData)TopicTable[TopicID];
+}
+
+if(objRTDData.TopicID==-1)
+{
+objRTDData.TopicID=TopicID;
+}
+
+if(QuoteCache.ContainsKey(strTicker))
+{
+RCV_REPORT_STRUCTExV3 report=(RCV_REPORT_STRUCTExV3)QuoteCache[strTicker];
+
+switch(strField)
+{
+case "last":
+objRTDData.Data= report.m_fNewPrice;
+break;
+case "open":
+objRTDData.Data= report.m_fOpen;
+break;
+case "high":
+objRTDData.Data= report.m_fHigh;
+break;
+case "low":
+objRTDData.Data= report.m_fLow;
+break;
+case "volume":
+objRTDData.Data= report.m_fVolume;
+break;
+case "time":
+objRTDData.Data= DateTime.FromFileTimeUtc (10000000*(long)report.m_time + 116444736000000000).ToLocalTime();
+break;
+default:
+objRTDData.Data= "格式错误";
+break;
+}
+}
+else
+{
+objRTDData.Data= "稍候";
+}
+return objRTDData.Data;
+break;
+default:
+return "数据类型不支持";
+break;
+}
+}
+catch(Exception e)
+{
+return "报价错误";
+}
+}
+
+#endregion
+private void UpdateQuote(string Symbol)
+{
+foreach(RTDData objRTDData in TopicTable.Values )
+{
+if(objRTDData.Symbol==Symbol)
+{
+RCV_REPORT_STRUCTExV3 report=(RCV_REPORT_STRUCTExV3)QuoteCache[Symbol];
+
+switch(objRTDData.Field)
+{
+case "last":
+objRTDData.Data= report.m_fNewPrice;
+break;
+case "open":
+objRTDData.Data= report.m_fOpen;
+break;
+case "high":
+objRTDData.Data= report.m_fHigh;
+break;
+case "low":
+objRTDData.Data= report.m_fLow;
+break;
+case "volume":
+objRTDData.Data= report.m_fVolume;
+break;
+case "time":
+objRTDData.Data= DateTime.FromFileTimeUtc (10000000*(long)report.m_time + 116444736000000000).ToLocalTime();
+break;
+default:
+objRTDData.Data= "格式错误";
+break;
+}
+}
+}
+
+m_xlRTDUpdate.UpdateNotify();
+}
+
+private void fTSdrv_OnQuote(object sender, TSQuoteEventArgs e)
+{
+string symbol=e.Symbol;
+RCV_REPORT_STRUCTExV3 report=e.QuoteData;
+
+if(!QuoteCache.ContainsKey(symbol))
+{ 
+QuoteCache.Add(symbol,report);
+
+UpdateQuote(symbol);
+
+
+}
+else
+{
+RCV_REPORT_STRUCTExV3 lastreport=(RCV_REPORT_STRUCTExV3)QuoteCache[symbol];
+
+if(lastreport.m_fVolume<report.m_fVolume||(lastreport.m_fVolume==report.m_fVolume&&lastreport.m_fNewPrice!=report.m_fNewPrice))
+{
+QuoteCache[symbol]=report;
+UpdateQuote(symbol);
+}
+}
+
+}
+
+}
+public class TongshiWindow:UserControl
+{
+private const int TSMSG=55;
+private const uint SHMKT=18515;
+private const uint SZMKT=23123;
+private const int RCV_WORK_SENDMSG = 4;
+private const int RCV_REPORT=0x3f001234;
+private const int RCV_FILEDATA = 0x3f001235;
+private const int STKLABEL_LEN = 10 ; // 股号数据长度,国内市场股号编码兼容钱龙
+private const int STKNAME_LEN = 32 ; // 股名长度
+private string DRVLOCATION="C:\\Program Files\\FreeStar\\Stock.dll";
+public bool Drvloaded=false;
+private const short fProviderID=102;
+
+private System.Windows.Forms.TextBox textName;
+
+private System.ComponentModel.IContainer components;
+public event TSQuoteEventHandler OnQuote;
+
+public TongshiWindow() 
+{
+InitializeComponent();
+}
+
+
+// Initialize the control elements.
+public void InitializeComponent() 
+{
+textName = new System.Windows.Forms.TextBox();
+textName.Location = new System.Drawing.Point(120, 8);
+textName.Size = new System.Drawing.Size(232, 20);
+textName.TabIndex = 0;
+
+components = new System.ComponentModel.Container();
+Controls.Add(textName);
+Size = new System.Drawing.Size(375, 150);
+}
+
+
+[DllImport("C:\\Program Files\\FreeStar\\Stock.dll", CharSet=CharSet.Auto)]
+public static extern int Stock_Init(int hWnd, uint Msg,int nWorkMode);
+
+[DllImport("C:\\Program Files\\FreeStar\\Stock.dll", CharSet=CharSet.Auto)]
+public static extern int Stock_Quit(int hWnd);
+
+public void DrvInit()
+{
+Drvloaded=true;
+Stock_Init(this.Handle.ToInt32(),TSMSG,RCV_WORK_SENDMSG);
+
+}
+public void DrvQuit()
+{
+if(Drvloaded)
+{
+Stock_Quit(this.Handle.ToInt32());
+Drvloaded=false;
+}
+}
+
+
+protected override void WndProc(ref Message m) 
+{
+RCV_DATA data;
+TSQuoteEventArgs qtarg;
+
+if(m.Msg==TSMSG&&Drvloaded)
+{
+data=(RCV_DATA)m.GetLParam(typeof(RCV_DATA));
+
+// Listen for operating system messages.
+switch (m.WParam.ToInt32())
+{
+case RCV_REPORT:
+
+if(OnQuote!=null)
+{
+for(int i=0;i<data.m_nPacketNum;i++)
+{
+RCV_REPORT_STRUCTExV3 report=(RCV_REPORT_STRUCTExV3)Marshal.PtrToStructure
+(new IntPtr((int)data.ptr+158 * i),typeof(RCV_REPORT_STRUCTExV3));
+
+string symbol=new string (report.m_szLabelName,0,6);
+qtarg=new TSQuoteEventArgs (symbol,report);
+OnQuote(this,qtarg); 
+}
+}
+break; 
+case RCV_FILEDATA:
+// RCV_HISTORY_STRUCTEx history=(RCV_HISTORY_STRUCTEx)Marshal.PtrToStructure(data.ptr,typeof(RCV_HISTORY_STRUCTEx));
+// RCV_HISTORY_STRUCTEx_tag taginfo= (RCV_HISTORY_STRUCTEx_tag)Marshal.PtrToStructure(data.ptr,typeof(RCV_HISTORY_STRUCTEx_tag));
+// RCV_HISTORY_STRUCTEx_data hdata= (RCV_HISTORY_STRUCTEx_data)Marshal.PtrToStructure(new IntPtr((int)data.ptr+Marshal.SizeOf(typeof(RCV_HISTORY_STRUCTEx_data))),typeof(RCV_HISTORY_STRUCTEx_data));
+// 
+// Console.WriteLine("data received + ");
+
+break;
+}
+}
+base.WndProc(ref m);
+
+}
+
+[ StructLayout( LayoutKind.Sequential )]
+public struct RCV_REPORT_STRUCTExV2
+{
+public System.UInt16 m_cbSize; // 结构大小
+public System.Int32 m_time; // 成交时间
+public System.UInt16 m_wMarket; // 股票市场类型
+[ MarshalAs( UnmanagedType.ByValArray, SizeConst=STKLABEL_LEN )]
+public char[] m_szLabel; // 股票代码,以'\0'结尾
+[ MarshalAs( UnmanagedType.ByValArray, SizeConst=STKNAME_LEN )]
+public char[] m_szName; // 股票名称,以'\0'结尾
+
+public float m_fLastClose; // 昨收
+public float m_fOpen; // 今开
+public float m_fHigh; // 最高
+public float m_fLow; // 最低
+public float m_fNewPrice; // 最新
+public float m_fVolume; // 成交量
+public float m_fAmount; // 成交额
+
+[ MarshalAs( UnmanagedType.ByValArray, SizeConst=3 )]
+public float[] m_fBuyPrice; // 申买价1,2,3
+[ MarshalAs( UnmanagedType.ByValArray, SizeConst=3 )]
+public float[] m_fBuyVolume; // 申买量1,2,3
+[ MarshalAs( UnmanagedType.ByValArray, SizeConst=3 )]
+public float[] m_fSellPrice; // 申卖价1,2,3
+[ MarshalAs( UnmanagedType.ByValArray, SizeConst=3 )]
+public float[] m_fSellVolume; // 申卖量1,2,3
+
+public float m_fBuyPrice4; // 申买价4
+public float m_fBuyVolume4; // 申买量4
+public float m_fSellPrice4; // 申卖价4
+public float m_fSellVolume4; // 申卖量4
+
+// public float m_fBuyPrice5; // 申买价5
+// public float m_fBuyVolume5; // 申买量5
+// public float m_fSellPrice5; // 申卖价5
+// public float m_fSellVolume5; 
+
+
+}
+
+[ StructLayout( LayoutKind.Sequential )]
+public struct RCV_REPORT_STRUCTEx
+{
+// public System.UInt16 m_cbSize; // 结构大小
+// public DateTime m_time; // 成交时间
+public System.UInt16 m_wMarket; // 股票市场类型
+[ MarshalAs( UnmanagedType.ByValArray, SizeConst=STKLABEL_LEN )]
+public char[] m_szLabel; // 股票代码,以'\0'结尾
+[ MarshalAs( UnmanagedType.ByValArray, SizeConst=STKNAME_LEN )]
+public char[] m_szName; // 股票名称,以'\0'结尾
+
+public float m_fLastClose; // 昨收
+public float m_fOpen; // 今开
+public float m_fHigh; // 最高
+public float m_fLow; // 最低
+public float m_fNewPrice; // 最新
+public float m_fVolume; // 成交量
+public float m_fAmount; // 成交额
+
+[ MarshalAs( UnmanagedType.ByValArray, SizeConst=3 )]
+public float[] m_fBuyPrice; // 申买价1,2,3
+[ MarshalAs( UnmanagedType.ByValArray, SizeConst=3 )]
+public float[] m_fBuyVolume; // 申买量1,2,3
+[ MarshalAs( UnmanagedType.ByValArray, SizeConst=3 )]
+public float[] m_fSellPrice; // 申卖价1,2,3
+[ MarshalAs( UnmanagedType.ByValArray, SizeConst=3 )]
+public float[] m_fSellVolume; // 申卖量1,2,3
+
+// public float m_fBuyPrice4; // 申买价4
+// public float m_fBuyVolume4; // 申买量4
+// public float m_fSellPrice4; // 申卖价4
+// public float m_fSellVolume4; // 申卖量4
+//
+// public float m_fBuyPrice5; // 申买价5
+// public float m_fBuyVolume5; // 申买量5
+// public float m_fSellPrice5; // 申卖价5
+// public float m_fSellVolume5; 
+
+
+}
+
+[ StructLayout( LayoutKind.Sequential )]
+public struct RCV_EKE_HEADEx
+{
+public System.UInt32 m_dwHeadTag; // = EKE_HEAD_TAG
+public System.UInt16 m_wMarket; // 市场类型
+[ MarshalAs( UnmanagedType.ByValTStr, SizeConst=STKLABEL_LEN )]
+public string m_szLabel; // 股票代码
+}
+[ StructLayout( LayoutKind.Sequential )]
+public struct HistoryData
+{
+public System.UInt32 m_time; //UCT
+public float m_fOpen; //开盘
+public float m_fHigh; //最高
+public float m_fLow; //最低
+public float m_fClose; //收盘
+public float m_fVolume; //量
+public float m_fAmount; //额
+public System.UInt16 m_wAdvance; //涨数,仅大盘有效
+public System.UInt16 m_wDecline; //跌数,仅大盘有效
+
+}
+
+// [ StructLayout( LayoutKind.Explicit )]
+// public struct RCV_HISTORY_STRUCTEx
+// {
+// [ FieldOffset( 0 )]
+// public HistoryData H;
+//
+// [ FieldOffset( 0 )]
+// public RCV_EKE_HEADEx m_head;
+// }
+
+[ StructLayout( LayoutKind.Sequential )]
+public struct RCV_HISTORY_STRUCTEx_tag
+{
+public RCV_EKE_HEADEx m_head;
+}
+
+[ StructLayout( LayoutKind.Sequential )]
+public struct RCV_HISTORY_STRUCTEx_data
+{
+public HistoryData data;
+}
+
+[ StructLayout( LayoutKind.Sequential )]
+public struct rcvdata
+{
+public IntPtr rpt3;
+// [ FieldOffset( 0 )]
+// public IntPtr rpt2;
+// [ FieldOffset( 0 )]
+// public IntPtr rpt;
+// [ FieldOffset( 0 )]
+// [ FieldOffset( 0 )]
+}
+
+[ StructLayout( LayoutKind.Sequential )]
+public struct RCV_FILE_HEADEx
+{
+public System.UInt32 m_dwAttrib; // 文件子类型
+public System.UInt32 m_dwLen; // 文件长度
+public System.UInt32 m_dwSerialNo; // 序列号
+[ MarshalAs( UnmanagedType.ByValTStr , SizeConst=260 )]
+public string m_szFileName; // 文件名 or URL
+}
+
+[ StructLayout( LayoutKind.Explicit )]
+public struct FileInfo
+{
+[ FieldOffset( 0 )]
+public System.UInt32 m_dwSerialNo; // 序列号
+[ FieldOffset( 0 )]
+public System.Int32 m_FileTime; // 文件创建时间
+}
+[ StructLayout( LayoutKind.Sequential )]
+public struct RCV_DATA
+{
+public System.Int32 m_wDataType; // 文件类型
+public System.Int32 m_nPacketNum; // 记录数,参见注一
+public RCV_FILE_HEADEx m_File; // 文件接口
+public System.Int32 m_bDISK;
+// [ MarshalAs( UnmanagedType.LPArray)]
+// public RCV_REPORT_STRUCTExV3[] rpt;
+// [ MarshalAs( UnmanagedType.AsAny)]
+public IntPtr ptr;
+// public rcvdata data;
+}
+
+}
+public class TSQuoteEventArgs:EventArgs
+{
+public string Symbol;
+public DateTime TimeStamp;
+public RCV_REPORT_STRUCTExV3 QuoteData;
+
+public TSQuoteEventArgs(string symbol,RCV_REPORT_STRUCTExV3 qt)
+{
+Symbol=symbol;
+QuoteData=qt;
+TimeStamp=DateTime.FromFileTimeUtc (10000000*(long)QuoteData.m_time + 116444736000000000);
+}
+}
+
+public delegate void TSQuoteEventHandler(object sender, TSQuoteEventArgs e);
+[ StructLayout( LayoutKind.Explicit )]
+public struct RCV_REPORT_STRUCTExV3
+{
+[ FieldOffset( 0 )]public System.UInt16 m_cbSize; // 结构大小
+[ FieldOffset( 2 )]public System.UInt32 m_time; // 成交时间
+[ FieldOffset( 6 )]public System.UInt16 m_wMarket; // 股票市场类型
+
+[ MarshalAs( UnmanagedType.ByValArray, SizeConst=42)]
+[ FieldOffset( 8 )]public char[] m_szLabelName; // 股票代码,以'\0'结尾
+//
+// [ MarshalAs( UnmanagedType.ByValTStr, SizeConst=32 )]
+// [ FieldOffset( 18 )]public string m_szName; // 股票名称,以'\0'结尾
+// [ MarshalAs( UnmanagedType.ByValArray, SizeConst=STKLABEL_LEN-1 )]
+// public char[] m_szLabel; // 股票代码,以'\0'结尾
+// [ MarshalAs( UnmanagedType.ByValArray, SizeConst=STKNAME_LEN-1 )]
+// public char[] m_szName; // 股票名称,以'\0'结尾
+
+[ FieldOffset( 50 )]public System.Single m_fLastClose; // 昨收
+[ FieldOffset( 54 )]public System.Single m_fOpen; // 今开
+[ FieldOffset( 58 )]public System.Single m_fHigh; // 最高
+[ FieldOffset( 62 )]public System.Single m_fLow; // 最低
+[ FieldOffset( 66 )]public System.Single m_fNewPrice; // 最新
+[ FieldOffset( 70 )]public System.Single m_fVolume; // 成交量
+[ FieldOffset( 74 )]public System.Single m_fAmount; // 成交额
+
+// [ MarshalAs( UnmanagedType.ByValArray, SizeConst=3 )]
+[ FieldOffset( 78 )]public System.Single m_fBuyPrice1; // 申买价1
+[ FieldOffset( 82 )]public System.Single m_fBuyPrice2; // 申买价2
+[ FieldOffset( 86 )]public System.Single m_fBuyPrice3; // 申买价3
+[ FieldOffset( 90 )]public System.Single m_fBuyVolume1; // 申买量1
+[ FieldOffset( 94 )]public System.Single m_fBuyVolume2; // 申买量2
+[ FieldOffset( 98 )]public System.Single m_fBuyVolume3; // 申买量3
+[ FieldOffset( 102 )]public System.Single m_fSellPrice1; // 申卖价1
+[ FieldOffset( 106 )]public System.Single m_fSellPrice2; // 申卖价2
+[ FieldOffset( 110 )]public System.Single m_fSellPrice3; // 申卖价3
+[ FieldOffset( 114 )]public System.Single m_fSellVolume1; // 申卖量1
+[ FieldOffset( 118 )]public System.Single m_fSellVolume2; // 申卖量2
+[ FieldOffset( 122 )]public System.Single m_fSellVolume3; // 申卖量3
+
+// [ MarshalAs( UnmanagedType.ByValArray, SizeConst=3 )]
+// [ FieldOffset( 0 )]public System.Single[] m_fBuyVolume; // 申买量1,2,3
+// [ MarshalAs( UnmanagedType.ByValArray, SizeConst=3 )]
+// [ FieldOffset( 0 )]public System.Single[] m_fSellPrice; // 申卖价1,2,3
+// [ MarshalAs( UnmanagedType.ByValArray, SizeConst=3 )]
+// [ FieldOffset( 0 )]public System.Single[] m_fSellVolume; // 申卖量1,2,3
+
+[ FieldOffset( 126 )]public System.Single m_fBuyPrice4; // 申买价4
+[ FieldOffset( 130 )]public System.Single m_fBuyVolume4; // 申买量4
+[ FieldOffset( 134 )]public System.Single m_fSellPrice4; // 申卖价4
+[ FieldOffset( 138 )]public System.Single m_fSellVolume4; // 申卖量4
+
+[ FieldOffset( 142 )]public System.Single m_fBuyPrice5; // 申买价5
+[ FieldOffset( 146 )]public System.Single m_fBuyVolume5; // 申买量5
+[ FieldOffset( 150 )]public System.Single m_fSellPrice5; // 申卖价5
+[ FieldOffset( 154 )]public System.Single m_fSellVolume5; 
+}
+
+public class RTDData
+{
+private int m_intTopicID=-1;
+private string m_strSymbol;
+private object m_objData;
+private string m_strType;
+private string m_strField;
+private bool m_boolIsUpdated=false;
+public int TopicID
+{
+get
+{
+return m_intTopicID;
+}
+set
+{
+m_intTopicID=value;
+}
+} 
+public string Symbol
+{
+get
+{
+return m_strSymbol;
+}
+}
+public object Data
+{
+get
+{
+return m_objData;
+}
+set
+{
+m_objData=value;
+}
+}
+public string Type
+{
+get
+{
+return m_strType;
+}
+}
+public string Field
+{
+get
+{
+return m_strField;
+}
+}
+public bool IsUpdated
+{
+get
+{
+return m_boolIsUpdated;
+}
+set
+{
+m_boolIsUpdated=value;
+}
+}
+public RTDData(string symbol,string datatype,string datafield)
+{
+m_strSymbol=symbol;
+m_strType=datatype;
+m_strField=datafield;
+}
+}
+public class Win32 
+{
+[DllImport("user32.dll", CharSet=CharSet.Auto)]
+public static extern int MessageBox(int hWnd, String text, 
+String caption, uint type);
+}
+} 
+    
+
+tom_sh 
+View Public Profile 
+Find all posts by tom_sh 
+Add tom_sh to Your Contacts 
+
+  #2       2005-09-18, 13:30  
+tom_sh   Senator    Join Date: 2005-01-29  Location: 深圳  Age: 39  Posts: 478    
+ 
+项目引用microsoft excel 10.0 object library。
+另外需要默认安装FREESTAR 
+    
+
+tom_sh 
+View Public Profile 
+Find all posts by tom_sh 
+Add tom_sh to Your Contacts 
+
+  #3       2005-09-18, 13:54  
+tom_sh   Senator    Join Date: 2005-01-29  Location: 深圳  Age: 39  Posts: 478    
+ 
+这个程序有两个主要类：RTDServer和TongshiWindow。RTDServer实现服务器本身，TongshiWindow从FREESTAR接收股票行情并发送实时数据给RTDServer。
+RTDServer实现EXCEL的IRtdServer接口，包括ServerStart，ServerTerminate，Heartbeat，ConnectData，DisconnectData，RefreshData几个预定义子程序（方法）。这些方法与EXCEL按约定的方式（即IRtdServer接口）交流，提供数据，交换程序状态。RTDServer最后将注册为一个COM组件。
+TongshiWindow按照通视规范调用FREESTAR，获得实时行情数据，并把RTDServer订阅的分笔行情数据以事件通知的方式传递给RTDServer，由其向EXCEL发送。
+程序的辅助类有TSQuoteEventArgs（行情事件）、TSQuoteEventHandler（行情事件处理）、RCV_REPORT_STRUCTExV3（分笔数据结构）、RTDData（实时数据）、Win32（版权信息处理）。 
+    
+
+tom_sh 
+View Public Profile 
+Find all posts by tom_sh 
+Add tom_sh to Your Contacts 
+
+  #4       2005-09-18, 14:18  
+tom_sh   Senator    Join Date: 2005-01-29  Location: 深圳  Age: 39  Posts: 478    
+ 
+[ProgId("RTDServer.Tongshi"),ComVisible(true)]//COM接口标识，生成的程序可以注册为一个COM组件
+public class RTDServer:IRtdServer//实现IRtdServer接口，为EXCEL所识别
+{
+private Hashtable QuoteCache=Hashtable.Synchronized(new Hashtable());//以股票代码为KEY，以分笔成交记录为VALUE的最新行情数据表
+private Hashtable TopicTable=Hashtable.Synchronized(new Hashtable());//以TOPICID（EXCEL动态唯一生成）为KEY，以行情字段值（如高开低收）为VALUE的数据表
+private ArrayList SymbolMonitor=new ArrayList ();//冗余未用，本行可删
+
+private IRTDUpdateEvent m_xlRTDUpdate;//IRTDUpdateEvent 对象实例，更新EXCEL用
+protected TongshiWindow fTSdrv; //TongshiWindow 对象实例，从FREESTAR接收行情用 
+    
+
+tom_sh 
+View Public Profile 
+Find all posts by tom_sh 
+Add tom_sh to Your Contacts 
+
+  #5       2005-09-20, 11:38  
+gzpony   Senior Member    Join Date: 2005-03-29  Location: 广州  Age: 10  Posts: 1,108    
+ 
+支持一个，热情的顶啊。
+这些源码用的是C#吗？
+
+另外在MACD那里见过有软通视卡的，包括了很多数据源的dll，是不是只要利用这些源码的同一种调用通视卡数据的方法，一样可以调用那个软通视卡的多个数据源？就是说不必修改调用通视卡数据的方法，只需更换那个软通视卡的数据源，就可以更换这个服务器的数据来源？ 
+    
+
+gzpony 
+View Public Profile 
+Find all posts by gzpony 
+Add gzpony to Your Contacts 
+
+  #6       2005-09-20, 21:50  
+tom_sh   Senator    Join Date: 2005-01-29  Location: 深圳  Age: 39  Posts: 478    
+ 
+是c#源码。我没有做软通视驱动选择功能，但这不是技术障碍。源码在这里，无论你用哪种驱动，替换TSWINDOW类中两处DllImport("C:\\Program Files\\FreeStar\\Stock.dll"为各人使用的驱动路径，重新编译即可。
+此外，注意这是一个C#类库项目，不是WINDOWS应用程序项目。 
+    
+
+tom_sh 
+View Public Profile 
+Find all posts by tom_sh 
+Add tom_sh to Your Contacts 
+
+  #7       2005-10-13, 22:12  
+toneyson   Senior Member    Join Date: 2005-10-13  Location: 天津  Age: 35  Posts: 192    
+ 
+比如我想知道某个股票的当天的分笔数据,如何通知股票接受程序(比如数畅),是哪个函数?每个参数的含义是什么呢?先谢谢了. 
+    
+
+toneyson 
+View Public Profile 
+Find all posts by toneyson 
+Add toneyson to Your Contacts 
+
+  #8       2005-10-14, 09:28  
+tom_sh   Senator    Join Date: 2005-01-29  Location: 深圳  Age: 39  Posts: 478    
+ 
+目前的程序只接收开高低收量时间6个字段数据，分笔成交的盘口数据没有放进去，不过既然源代码在这里，自己添加有关字段或其他统计指标应该都不是难事。
+此外，这个程序设计上接收的是实时数据，如果想提取历史分笔（当天或更早之前的），需要自己写保存和提取代码。
+数畅等驱动程序一经本程序启动，就会不断发送（单向广播）实时行情，本程序与数畅除了关闭通知以外没有其他的交互。
+此外，数畅驱动有其他股票驱动没有的交互功能（即点播），想利用这项功能也需要自己写代码（按数畅公布的规范写）。 
+    
+
+tom_sh 
+View Public Profile 
+Find all posts by tom_sh 
+Add tom_sh to Your Contacts 
+
+  #9       2005-10-15, 11:10  
+toneyson   Senior Member    Join Date: 2005-10-13  Location: 天津  Age: 35  Posts: 192    
+ 
+谢谢 
+    
+
+toneyson 
+View Public Profile 
+Find all posts by toneyson 
+Add toneyson to Your Contacts 
+
+  #10       2005-11-07, 07:36  
+bbbird886   Member    Join Date: 2005-11-07  Location: tianjin  Age: 35  Posts: 32    
+ 
+我也想做一个能够从网上下载股票数据的软件.但是本人是个vb菜鸟,还是6.0的不是.net的 ops: 所以看不明白您所写的c的代码.我想问一些简单的问题,盼望您能答复:
+1\我从网上下载了freestar,这个软件可以直接下载分时数据(tick),我想它应该是把这些数据写在了某个内存中,我想问一下,如何通知该软件内存的起始地址.
+2\我想这些数据应该是一条一条产生的,那么我如果编辑程序应该是这样,每当一条消息传递完毕后,我的程序进行处理,处理完毕后通知freestar进行下一条数据的传输,那么怎么能通知freestar呢?是哪个函数?
+先谢谢了. 
+    
+
+bbbird886 
+View Public Profile 
+Find all posts by bbbird886 
+Add bbbird886 to Your Contacts 
+
+  #11       2005-11-08, 08:46  
+tom_sh   Senator    Join Date: 2005-01-29  Location: 深圳  Age: 39  Posts: 478    
+ 
+1、FREESTAR可下载分时数据，即每分钟一笔汇总成交，包括平均价、总成交量、总成交额，不是分笔数据。分时数据在盘后可以下载，盘中不知道行不行，没试过。下载的分时数据是一个数组，数据项的结构定义参见通视卡协议（通视网站、MACD上有）。FREESTAR以WINDOWS消息的方式传递指向分时数据数组的内存指针和数组长度。
+2、分时数据数据一次性下载。如何以编码的方式通知FREESTAR服务器开发者没有公布，外人无法得知，目前都是通过用户界面手动做。 
+    
+
+tom_sh 
+View Public Profile 
+Find all posts by tom_sh 
+Add tom_sh to Your Contacts 
+
+  #12       2005-11-10, 14:33  
+bbbird886   Member    Join Date: 2005-11-07  Location: tianjin  Age: 35  Posts: 32    
+ 
+我用vb调用Public Declare Function Stock_Init Lib "D:\Program Files\FreeStar\stock.dll" (ByVal hwnd As Long, ByVal msg As Long, ByVal nmode As Single) As Long
+
+Public Declare Function Stock_Quit Lib "D:\Program Files\FreeStar\stock.dll" (ByVal hwnd As Long) As Long
+这两个函数,怎么那个freestar不运行呢?不显示画面
+Stock_Init(Me.hwnd, WM_USER + 1, &H4)
+奇怪了.是不是我那里做错了.我试着换成了helloword就可以.不过helloword已经不能免费使用了.5555,帮个忙吧! 
+    
+
+bbbird886 
+View Public Profile 
+Find all posts by bbbird886 
+Add bbbird886 to Your Contacts 
+
+  #13       2005-11-10, 21:09  
+tom_sh   Senator    Join Date: 2005-01-29  Location: 深圳  Age: 39  Posts: 478    
+ 
+可能是FREESTAR的问题，它的兼容性不如HELLOWORLD，经验判断。或者把nmode改成LONG试试（估计没用）。
+如果HELLOWORLD不行，再试MACD上公布的其他网络接口。
+另外，Stock_Init的第三个参数是整数4，你直接写4进去看看。 
+    
+
+tom_sh 
+View Public Profile 
+Find all posts by tom_sh 
+Add tom_sh to Your Contacts 
+
+  #14       2005-11-11, 01:25  
+金卡绣球   Member    Join Date: 2005-11-11  Location: bj  Posts: 45    
+ 
+  
+    
+
+金卡绣球 
+View Public Profile 
+Find all posts by 金卡绣球 
+Add 金卡绣球 to Your Contacts 
+
+  #15       2005-11-11, 03:52  
+hylt   Administrator    Join Date: 2004-02-24  Location: 北京  Age: 39  Posts: 11,559    
+ 
+Quote:
+Originally Posted by 金卡绣球 
+  
+
+http://www.hylt.net/club/viewtopic.php?t=4160  
+    
+
+hylt 
+View Public Profile 
+Find all posts by hylt 
+Add hylt to Your Contacts 
+
+  #16       2005-11-11, 07:40  
+bbbird886   Member    Join Date: 2005-11-07  Location: tianjin  Age: 35  Posts: 32    
+ 
+成功了，谢谢 
+    
+
+bbbird886 
+View Public Profile 
+Find all posts by bbbird886 
+Add bbbird886 to Your Contacts 
+
+  #17       2005-11-11, 10:47  
+bbbird886   Member    Join Date: 2005-11-07  Location: tianjin  Age: 35  Posts: 32    
+ 
+我按照我的推测编写了一些vb的代码.我觉得应该是这样的.一个窗口通过调用stock-init函数,运行freestar并且同时将wm-user自定义消息号的数值传给freestar,以及窗口的句柄也传给freestar,freestar开始下载数据的时候会按照约定好的自定义消息号,句柄,将数据的内存起始地址以消息参数的形式传给窗口,窗口接收到自定义消息号后就可以按照消息参数的起始地址接收数据了.我大概编了一个很简单的测试的程序.但是程序没有反映.能再帮助我一下吗?先谢谢了 ops: 有些不好意思了.下面是代码:
+1:Module部分:
+Option Explicit
+Private Const GWL_WNDPROC = -4
+Public Const GWL_USERDATA = (-21)
+
+Public Const WM_USER = 54
+Public Declare Function Stock_Init Lib "D:\Program Files\FreeStar\stock.dll" (ByVal hwnd As Long, ByVal Msg As Long, ByVal nmode As Long) As Long
+
+Public Declare Function Stock_Quit Lib "D:\Program Files\FreeStar\stock.dll" (ByVal hwnd As Long) As Long
+Private Declare Function CallWindowProc Lib "user32" Alias "CallWindowProcA" (ByVal lpPrevWndFunc As Long, _
+ByVal hwnd As Long, ByVal Msg As Long, _
+ByVal wParam As Long, ByVal lParam As Long) As Long
+Public Declare Function GetWindowLong Lib "user32" Alias "GetWindowLongA" _
+(ByVal hwnd As Long, ByVal nIndex As Long) As Long
+Private Declare Function SetWindowLong Lib "user32" Alias _
+"SetWindowLongA" (ByVal hwnd As Long, _
+ByVal nIndex As Long, ByVal dwNewLong As Long) As Long
+Public Declare Function SendMessage Lib "user32" Alias "SendMessageA" (ByVal hwnd As Long, ByVal wMsg As Long, ByVal wParam As Long, lParam As Any) As Long
+Public Function Hook(ByVal hwnd As Long) As Long
+Dim pOld As Long
+'指定自定义的窗口过程
+pOld = SetWindowLong(hwnd, GWL_WNDPROC, _
+AddressOf WindowProc)
+'保存原来默认的窗口过程指针
+SetWindowLong hwnd, GWL_USERDATA, pOld
+Hook = pOld
+End Function
+
+Public Sub Unhook(ByVal hwnd As Long, ByVal lpWndProc As Long)
+Dim temp As Long
+
+temp = SetWindowLong(hwnd, GWL_WNDPROC, lpWndProc)
+End Sub
+
+Function WindowProc(ByVal hw As Long, ByVal uMsg As Long, _
+ByVal wParam As Long, ByVal lParam As Long) As Long
+
+If uMsg = WM_USER + 1 Then
+MsgBox wParam
+MsgBox lParam
+End If
+Dim lpPrevWndProc As Long
+'查询原来默认的窗口过程指针
+lpPrevWndProc = GetWindowLong(hw, GWL_USERDATA)
+'调用原来的窗口过程
+WindowProc = CallWindowProc(lpPrevWndProc, hw, uMsg, wParam, lParam)
+End Function
+窗体部分
+Private Sub Command1_Click()
+a = Stock_Init(Me.hwnd, WM_USER + 1, &H4)
+End Sub
+
+Private Sub Command2_Click()
+b = Stock_Quit(Me.hwnd)
+End Sub
+再次感谢 
+    
+
+bbbird886 
+View Public Profile 
+Find all posts by bbbird886 
+Add bbbird886 to Your Contacts 
+
+  #18       2005-11-11, 20:32  
+金卡绣球   Member    Join Date: 2005-11-11  Location: bj  Posts: 45    
+ 
+首先 
+Public Const WM_USER = 12345 
+
+其次要收到各种消息才说.............. 
+    
+
+金卡绣球 
+View Public Profile 
+Find all posts by 金卡绣球 
+Add 金卡绣球 to Your Contacts 
+
+  #19       2005-11-12, 09:39  
+tom_sh   Senator    Join Date: 2005-01-29  Location: 深圳  Age: 39  Posts: 478    
+ 
+vb下如何接收和处理窗口消息我是不懂的，所以看你的程序也没法直接提供帮助（VB应该有自己的WINDOWS消息处理方法吧，我看你调用了不少user32函数，需要直接使用这些低层次处理机制么？通视公司给的C++源码也没有这些）。我只知道在C#下，控间窗口的消息处理函数要自己做OVERRIDE编码，然后用wm-user定义来判断是否为FREESTAR发送，然后根据数据类别（分笔数据或是文件数据）的不同把指针转换成相应的数据结构。 
+    
+
+tom_sh 
+View Public Profile 
+Find all posts by tom_sh 
+Add tom_sh to Your Contacts 
+
+  #20       2005-11-12, 11:41  
+金卡绣球   Member    Join Date: 2005-11-11  Location: bj  Posts: 45    
+ 
+呵呵，你还没回答问题；
+
+这个地方运行了没有，收到消息没有：
+If uMsg = WM_USER + 1 Then 
+MsgBox wParam 
+MsgBox lParam 
+End If 
+
+
+
+
+《您好:打扰了.我感觉您在回复我的帖子的时候好象有很多的话没说.是不是这样:每个特定的下载方式都有自己的消息号?那么每个消息号代表的意思是什么呢?能告诉我吗?谢谢.或者我的猜测根本就是胡扯.那么它的机理是什么呢?您只要告诉我机理就可以了.因为我对c是一点都不明白.呵呵.实在是没办法,打扰您了.再次感谢.》
+
+回复你的信件：
+1.是的，有话说，但如果你不回答就不说了（呵呵，说不下去）；
+2.是的，特定消息号；
+3.消息号代表....，代表自己的意思，比方12345 ；但不能小于 &H400 ，这个你忘了，&H400 是什么啊；
+4.机理就是调用它的DLL，告诉DLL，你的哪个句柄（水桶来装水）是收货的地方；
+
+
+.................. 
+    
+
+金卡绣球 
+View Public Profile 
+Find all posts by 金卡绣球 
+Add 金卡绣球 to Your Contacts 
+
+  #21       2005-11-12, 11:43  
+金卡绣球   Member    Join Date: 2005-11-11  Location: bj  Posts: 45    
+ 
+tom_sh 你好：
+
+
+发消息（一个指针lp）到另一个a.exe程序，这个a.exe程序根据消息来的lp参数读一些内存时报错，说该地址内存不许读，咋办？
+
+谢谢 
+    
+
+金卡绣球 
+View Public Profile 
+Find all posts by 金卡绣球 
+Add 金卡绣球 to Your Contacts 
+
+  #22       2005-11-12, 12:00  
+laot   Moderator    Join Date: 2004-05-13  Location: 北京  Age: 49  Posts: 299    
+ 
+请问金卡绣球是否知道分析家2005除权数据结构？  
+    
+
+laot 
+View Public Profile 
+Find all posts by laot 
+Add laot to Your Contacts 
+
+  #23       2005-11-13, 10:16  
+tom_sh   Senator    Join Date: 2005-01-29  Location: 深圳  Age: 39  Posts: 478    
+ 
+Quote:
+Originally Posted by 金卡绣球 
+tom_sh 你好：
+
+
+发消息（一个指针lp）到另一个a.exe程序，这个a.exe程序根据消息来的lp参数读一些内存时报错，说该地址内存不许读，咋办？
+
+谢谢 
+
+windows不同进程控制的内存空间好象是不能直接互相访问的，好象可以通过申请创建该内存空间的THREAD，以一个回调函数的方式来取数，应该是API HOOK的一种了。技术细节我是不懂的。在C#下这些东西都被封装了，所以处理起来或者很简单（如传递一个结构），或者根本行不通（如传递窗口控件资源）。
+
+此外，关于FREESTAR发送的WINDOWS消息。自定义常数uMsg是启动FREESTAR的stock_init入口参数之一，用于验证消息发送者的身份。wParam是数据类别标识符，即为即时行情或数据文件，数据文件又分若干种（请参考通视规范）。lParam是数据结构指针，用于转换具体数据。 
+    
+
+tom_sh 
+View Public Profile 
+Find all posts by tom_sh 
+Add tom_sh to Your Contacts 
+
+  #24       2005-11-13, 11:42  
+bbbird886   Member    Join Date: 2005-11-07  Location: tianjin  Age: 35  Posts: 32    
+ 
+没在form-load里调用函数.呵呵.好笑.先谢谢各位大侠的无私帮助.以后可能还会遇到问题.希望各位继续指教.谢谢了  
+    
+
+bbbird886 
+View Public Profile 
+Find all posts by bbbird886 
+Add bbbird886 to Your Contacts 
+
+  #25       2005-11-13, 12:28  
+金卡绣球   Member    Join Date: 2005-11-11  Location: bj  Posts: 45    
+ 
+Quote:
+Originally Posted by tom_sh  
+
+谢谢，是这个情况。
+
+帮想一下，FREESTAR发msg、lParam这个怎么实现，以便后面软件都正常运行。 
+    
+
+金卡绣球 
+View Public Profile 
+Find all posts by 金卡绣球 
+Add 金卡绣球 to Your Contacts 
+
+  #26       2005-11-13, 18:35  
+tom_sh   Senator    Join Date: 2005-01-29  Location: 深圳  Age: 39  Posts: 478    
+ 
+Quote:
+Originally Posted by 金卡绣球 
+
+谢谢，是这个情况。
+
+帮想一下，FREESTAR发msg、lParam这个怎么实现，以便后面软件都正常运行。 
+
+stock_init调用后（直到调用stock_quit结束行情接收），FREESTAR（或者其他通视兼容程序）就会向启动窗口循环发送WINDOWS消息（该消息类包含msg,wParam,lParam等引用），中间没有任何干涉机制。一般启动窗口都有一个WINDOWS消息处理函数，当收到任何WINDOWS消息这个函数都会自动被调用，相当于一个事件handler，数据转换和接收代码就放在其中。 
+    
+
+tom_sh 
+View Public Profile 
+Find all posts by tom_sh 
+Add tom_sh to Your Contacts 
+
+  #27       2005-11-13, 20:21  
+bbbird886   Member    Join Date: 2005-11-07  Location: tianjin  Age: 35  Posts: 32    
+ 
+曾经在书上看过.不过我这样的菜鸟看了也不是很明白.请大侠试试看了.不对的话别骂. ops: 
+    
+
+bbbird886 
+View Public Profile 
+Find all posts by bbbird886 
+Add bbbird886 to Your Contacts 
+
+  #28       2005-11-14, 07:34  
+bbbird886   Member    Join Date: 2005-11-07  Location: tianjin  Age: 35  Posts: 32    
+ 
+vb里面基本接触不到消息机制.全部被封装的死死的.我也是没办法的办法才调用了那么多的api函数.现在很后悔当初为什么选择了学习vb而不是vc.呵呵.要是当初学习的是vc就不用那么费劲了.谢谢你了. 
+    
+
+bbbird886 
+View Public Profile 
+Find all posts by bbbird886 
+Add bbbird886 to Your Contacts 
+
+  #29       2005-11-14, 14:49  
+金卡绣球   Member    Join Date: 2005-11-11  Location: bj  Posts: 45    
+ 
+你先慢慢试一下，应该可以的，数据都摆在门口了 
+    
+
+金卡绣球 
+View Public Profile 
+Find all posts by 金卡绣球 
+Add 金卡绣球 to Your Contacts 
+
+  #30       2005-11-16, 07:35  
+bbbird886   Member    Join Date: 2005-11-07  Location: tianjin  Age: 35  Posts: 32    
+ 
+大侠,下载分笔数据的数据结构是下面这个吗?
+typedef struct tagRCV_REPORT_STRUCTEx
+{
+WORD m_cbSize; // 结构大小
+time_t m_time; // 交易时间
+WORD m_wMarket; // 股票市场类型
+char m_szLabel[STKLABEL_LEN]; // 股票代码,以'\0'结尾
+char m_szName[STKNAME_LEN]; // 股票名称,以'\0'结尾
+
+float m_fLastClose; // 昨收
+float m_fOpen; // 今开
+float m_fHigh; // 最高
+float m_fLow; // 最低
+float m_fNewPrice; // 最新
+float m_fVolume; // 成交量
+float m_fAmount; // 成交额
+
+float m_fBuyPrice[3]; // 申买价1,2,3
+float m_fBuyVolume[3]; // 申买量1,2,3
+float m_fSellPrice[3]; // 申卖价1,2,3
+float m_fSellVolume[3]; // 申卖量1,2,3
+
+float m_fBuyPrice4; // 申买价4
+float m_fBuyVolume4; // 申买量4
+float m_fSellPrice4; // 申卖价4
+float m_fSellVolume4; // 申卖量4
+
+float m_fBuyPrice5; // 申买价5
+float m_fBuyVolume5; // 申买量5
+float m_fSellPrice5; // 申卖价5
+float m_fSellVolume5; // 申卖量5
+
+} RCV_REPORT_STRUCTEx, *PRCV_REPORT_STRUCTEx; 

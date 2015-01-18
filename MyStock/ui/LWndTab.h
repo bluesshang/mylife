@@ -140,7 +140,21 @@ public:
                 LRect rc0 = ti;
                 //rc0.right = rc0.left;//rc0.Height();
                 // dc.TextOut(rc0.right - 2, rc0.top + 5, (LPCTSTR)ti);
-                dc.TextOut(rc0.left + 2, rc0.bottom - 5, (LPCTSTR)ti);
+                //LSTR strTmp = ti;
+                TCHAR buf[256];
+                _tcscpy(buf, ti);
+                LRect rc1 = ti;
+                rc1.Transpose(); /* vertical to horizontal */
+                //rc1.left = 0; rc1.top = 0;
+                //rc1.right = rc0.Height();
+                //rc1.bottom = rc0.Width();
+                rc1.right -= 5;
+                int h = dc.DrawText(buf, rc1, DT_MODIFYSTRING | DT_END_ELLIPSIS | DT_CALCRECT);
+                int xoff = 0;
+                if (rc0.Width() > h)
+                    xoff = (rc0.Width() - h) / 2;
+                // dc.SelectClipRgn()
+                dc.TextOut(rc0.left + xoff, rc0.bottom - 5, buf);
                 //rc0.InflateRect(20, 20);
                 //dc.DrawText((LPCTSTR)ti, rc0, DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
             }

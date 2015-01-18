@@ -268,7 +268,7 @@ public:
             tblRltvStocks.Load(ds);
         }
 
-        lvTest.Create(this, 100, 5, rc, _T("ListView Test"), LLVS_HEADER | LLVS_TITLE, 1700);
+        lvTest.Create(this, 1000, 5, rc, _T("ListView Test: Realtime trade information"), LLVS_HEADER | LLVS_TITLE);
         cell1.AddWnd(&lvTest);
 
         LFrameCell &cell2 = cell.cell(0, 0x20000, CELLPOS_END);

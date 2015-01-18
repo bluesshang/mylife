@@ -144,7 +144,7 @@ public:
 
         // pc = cell.cell(MKCELLPOS(1,0),CELLPOS_END);
         pc = cell.cell(1, 0);
-        pc->CreateTabWnd(this, LTS_LEFT);
+        pc->CreateTabWnd(this, LTS_TOP);
 
         // wndTodo = new LWndTodo;
         wndTodo.SetBackgroundColor(RGB(130, 121, 79));

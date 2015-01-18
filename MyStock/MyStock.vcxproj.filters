@@ -87,6 +87,9 @@
     <ClInclude Include="ui\Line.h">
       <Filter>ui</Filter>
     </ClInclude>
+    <ClInclude Include="utils\lutil.h">
+      <Filter>utils</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">

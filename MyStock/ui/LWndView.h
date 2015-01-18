@@ -254,6 +254,11 @@ public:
         ClientToLayer(rc.lt);
         ClientToLayer(rc.rb);
     }
+    VOID LayerToClient(LPoint& pt)
+    {
+        pt += viewPort.lt;
+        pt -= offset;
+    }
 
     /* xpos in client coordination, not in layer */
     void PlaceDataOnX(int xdata, int xpos, int dlt = 0)
@@ -324,6 +329,12 @@ public:
                 sbVert.Draw(dcDst);
             }
         }
+    }
+    BOOL PtInScrollBar(LPoint& pt)
+    {
+        if (sbHover && sbHover->_rc.PtInRect(pt))
+            return TRUE;
+        return FALSE;
     }
     LPoint drawOffset;
     void BitBlt(LDC& dcDst, const LPoint& dragAmount/*, LDC& dcScrollbar*/)
@@ -1606,51 +1617,51 @@ public:
         }
 
         {
-            LRect rc = _rcClient;
-            rc.InflateRect(-20, -20);
-            dc.Rectangle(rc);
-            int x = rc.left + rc.Width() / 2;
-            int y = rc.top + rc.Height() / 2;
-            int angle[] = {0, 900, 1800, 2700};
-            for (int i = 0; i < sizeof(angle)/sizeof(angle[0]); i++) {
-                LFont ft(dc);
-                ft.CreateFont(_T("Tahoma"), 20, 
-                    FW_NORMAL, LFont::CLR_NOT_SPECIFIED,
-                    angle[i]);
-                rc.left = x;
-                rc.top = y;
-                rc.right = x + 200;
-                rc.bottom = y + 200;
-                //dc.DrawText(_T("::Hello world!"), rc, DT_CENTER/* | DT_VCENTER*/ | DT_SINGLELINE);
-                //dc.TextOut(x, y, _T("Hello world!"));
-            }
+            //LRect rc = _rcClient;
+            //rc.InflateRect(-20, -20);
+            //dc.Rectangle(rc);
+            //int x = rc.left + rc.Width() / 2;
+            //int y = rc.top + rc.Height() / 2;
+            //int angle[] = {0, 900, 1800, 2700};
+            //for (int i = 0; i < sizeof(angle)/sizeof(angle[0]); i++) {
+            //    LFont ft(dc);
+            //    ft.CreateFont(_T("Tahoma"), 20, 
+            //        FW_NORMAL, LFont::CLR_NOT_SPECIFIED,
+            //        angle[i]);
+            //    rc.left = x;
+            //    rc.top = y;
+            //    rc.right = x + 200;
+            //    rc.bottom = y + 200;
+            //    //dc.DrawText(_T("::Hello world!"), rc, DT_CENTER/* | DT_VCENTER*/ | DT_SINGLELINE);
+            //    dc.TextOut(x, y, _T("Hello world!"));
+            //}
 
-            LFont ft(dc);
-            ft.CreateFont(_T("Tahoma"), 20, 
-                FW_NORMAL, LFont::CLR_NOT_SPECIFIED,
-                900);
-            rc.left = y;
-            rc.right = y - 100;
-            rc.right = max(rc.right, 0);
-            rc.top = x;
-            rc.bottom = x + 30;
+            //LFont ft(dc);
+            //ft.CreateFont(_T("Tahoma"), 20, 
+            //    FW_NORMAL, LFont::CLR_NOT_SPECIFIED,
+            //    900);
+            //rc.left = y;
+            //rc.right = y - 100;
+            //rc.right = max(rc.right, 0);
+            //rc.top = x;
+            //rc.bottom = x + 30;
 
-            rc.left = x + 100;
-            rc.right = x;
-            rc.bottom = 0;
-            rc.top = y;
+            //rc.left = x;
+            //rc.right = x + 100;
+            //rc.bottom = y;
+            //rc.top = 0;
 
-            dc.Rectangle(rc);
-            //LRect rc2;
-            //dc.CalcTextRect(_T("::Hello world!"), rc2);
-            //dc.Rectangle(rc2);
-            dc.DrawText(_T("::Hello world!"), rc, DT_CENTER | /*DT_VCENTER | */DT_SINGLELINE);
-            //dc.TextOut(x, y, _T("Hello world!"));
+            //dc.Rectangle(rc);
+            ////LRect rc2;
+            ////dc.CalcTextRect(_T("::Hello world!"), rc2);
+            ////dc.Rectangle(rc2);
+            //dc.DrawText(_T("::Hello world!"), rc, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+            ////dc.TextOut(x, y, _T("Hello world!"));
 
-            dc.MoveTo(x, 0);
-            dc.LineTo(x, _rcClient.bottom);
-            dc.MoveTo(0, y);
-            dc.LineTo(_rcClient.right, y);
+            //dc.MoveTo(x, 0);
+            //dc.LineTo(x, _rcClient.bottom);
+            //dc.MoveTo(0, y);
+            //dc.LineTo(_rcClient.right, y);
 
         }
 #if 0

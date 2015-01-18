@@ -23,6 +23,7 @@
 #include "..\utils\lstr.h"
 #include "..\utils\lrect.h"
 #include "..\utils\larray.h"
+#include "..\utils\lutil.h"
 
 #include "lgdi.h"
 
@@ -34,9 +35,9 @@
 
 #define MEMZERO_THIS() memset(this, 0, sizeof(*this))
 
-#ifndef __ASSERT
-#define __ASSERT _ASSERT
-#endif
+//#ifndef LWIN_ASSERT
+//#define LWIN_ASSERT _ASSERT
+//#endif
 
 #define WM_LWIN_USER        WM_APP
 /* wParam: the LWIN_MOUSESYNC_INFO */
@@ -632,7 +633,7 @@ public:
         {   m_hWnd = hWnd;
         }
 
-        __ASSERT(m_hWnd == hWnd);
+        LWIN_ASSERT(m_hWnd == hWnd);
 
         //char text[256];
         //sprintf(text, "In LDialogProc [%s], msg is %04X ...\n", typeid(&*this).name(), msg);
@@ -698,7 +699,7 @@ public:
         HWND hWndParent,
         LPARAM lpInitParam = NULL)
     {
-        //__ASSERT(m_hWnd == NULL);
+        //LWIN_ASSERT(m_hWnd == NULL);
 
         return CreateDialogParam(
             m_hInstance, MAKEINTRESOURCE(T::IDD), 
@@ -757,7 +758,7 @@ public:
         return dwProcAddr;
     }
 
-    LWindowImpl() { __ASSERT(FALSE); }
+    LWindowImpl() { LWIN_ASSERT(FALSE); }
     LWindowImpl(LPCTSTR lpszClassName)
     {   
         m_lpszClassName = new TCHAR [_tcslen(lpszClassName) + _tcslen(_T("LWindowImpl")) + 8];
@@ -799,7 +800,7 @@ public:
             //::LeaveCriticalSection(&_cs);
         }
 #endif
-        __ASSERT(m_hWnd == hWnd);
+        LWIN_ASSERT(m_hWnd == hWnd);
 
         switch (msg)
         {
@@ -876,7 +877,7 @@ public:
     HWND Create(/*HWND hWndParent*/LWnd *parent, DWORD dwExStyle, DWORD dwStyle, LPCTSTR lpszWndName, RECT& rc, 
         int nCtrlId = 0, LPVOID lpParam = NULL, UINT uLWndStyle = 0, UINT uCtrlStyle = 0)
     {
-        __ASSERT(m_hWnd == NULL);
+        LWIN_ASSERT(m_hWnd == NULL);
         WNDCLASSEX wcx = {0};
 
         if (0 == GetClassInfoEx(m_hInstance, m_lpszClassName, &wcx))

@@ -203,8 +203,8 @@ public:
         if (!_flags) {
             LRect rc = _rcThumb;
             if (_dir & HORIZONTAL) 
-                rc.top = rc.bottom - 1;
-            else rc.left = rc.right - 1;
+                rc.top = rc.bottom - 2;
+            else rc.left = rc.right - 2;
             dc.Rectangle(rc);
         } else {
             dc.RoundRect(_rcThumb, 5, 5, 60);

@@ -115,7 +115,12 @@ public:
         left = top = right = bottom = 0;
     }
     int Size() { return Width() * Height(); }
-
+    void Transpose()
+    {
+        int width = Width();
+        right = left + Height();
+        bottom = top + width;
+    }
     /* center rectangle on specifed region if the region larger than the rectange */
     VOID Center(int cx, int cy)
     {

@@ -6,17 +6,20 @@
 #include "lwin.h"
 #include "LWndView.h"
 
+#define LLVS_NOBORDER 1
 typedef struct tagLISTVIEW_COLINFO
 {
     enum {LEFT, CENTER, RIGHT} align;
     INT width, maxWidth;
     COLORREF bgColor;
     LSTR name;
+    UINT flags;
     tagLISTVIEW_COLINFO()
     {
         align = LEFT;
         width = maxWidth = 0;
         bgColor = RGB(0, 0, 0);
+        flags = 0;
         //name = _T("");
     }
 } LISTVIEW_COLINFO;
@@ -27,7 +30,7 @@ typedef struct tagLISTVIEW_COLINFO
 #define LLVS_HEADERHITTEST (LVS_MAX_STYLE << 3)
 #define LLVS_HEADER        (LVS_MAX_STYLE << 4)
 #define LLVS_DOTLINE       (LVS_MAX_STYLE << 5)
-#define LLVS_ROWNUMBER     (LVS_MAX_STYLE << 6)
+//#define LLVS_ROWNUMBER     (LVS_MAX_STYLE << 6)
 #define LLVS_NOVLINE       (LVS_MAX_STYLE << 7)
 #define LLVS_NOHLINE       (LVS_MAX_STYLE << 8)
 #define LLVS_TITLE         (LVS_MAX_STYLE << 9)
@@ -96,8 +99,10 @@ public:
         _title = lpName ? lpName : _T("NO TITLE");
 
                     // =======
-                    _colinfos[0].width = 100;
-                    _uCtrlStyle |= LLVS_ROWNUMBER;
+                    _colinfos[0].width = 30;
+                    _colinfos[0].flags = LLVS_NOBORDER;
+                    _colinfos[0].align = LISTVIEW_COLINFO::RIGHT;
+                    //_uCtrlStyle |= LLVS_ROWNUMBER;
                     _uCtrlStyle |= LLVS_NOVLINE;
                     _uCtrlStyle |= LLVS_NOHLINE;
                     //_uCtrlStyle |= LLVS_HEADER;
@@ -114,13 +119,21 @@ public:
                     for (int i = 0; i < _cols; i++) {
                         _colinfos[i].name.Format(_T("header#%d"), i);
                     }
+                    for (int i = 1; i < _cols; i++) 
+                        _colinfos[i].width = 0;
         return TRUE;
+    }
+
+    void GetLayoutRect(LRect& rc)
+    {
+        GetClientRect(rc);
+        rc.InflateRect(-10, -10);
     }
 
     virtual int CalcCellWidth(int col, LDC& dc)
     {
         LRect rc;
-        GetClientRect(rc);
+        GetLayoutRect(rc);
         return rc.Width() / _cols;
     }
     virtual int CalcCellHeight(int row, LDC& dc)
@@ -146,13 +159,13 @@ public:
     {
         int i, fixedWidth, varWidth, varCols, t, lastVarCol;
         _widths[0] = 0;
-        if (LLVS_ROWNUMBER & _uCtrlStyle) {
-            LSTR str; SIZE sz;
-            // str = _rows;
-            str.Format(_T("0%d"), _rows);
-            dc.GetTextExtentPoint32(str, &sz);
-            _widths[0] = sz.cx;
-        }
+        //if (LLVS_ROWNUMBER & _uCtrlStyle) {
+        //    LSTR str; SIZE sz;
+        //    // str = _rows;
+        //    str.Format(_T("0%d"), _rows);
+        //    dc.GetTextExtentPoint32(str, &sz);
+        //    _widths[0] = sz.cx;
+        //}
         if (0.0 == _width) {
             for (i = 1; i <= _cols; i++) {
                 _widths[i] = _colinfos[i - 1].width;
@@ -164,9 +177,9 @@ public:
             }
         } else {
             LRect rc;
-            GetClientRect(rc);
-            int cx = (int)(_width <= 1.0 ?(float)(rc.Width() - 1) * _width : _width);
-            cx -= (LLVS_ROWNUMBER & _uCtrlStyle ? _widths[0] : 0);
+            GetLayoutRect(rc);
+            int cx = (int)(_width <= 1.0 ? (float)(rc.Width() - 1) * _width : _width);
+            ////cx -= (LLVS_ROWNUMBER & _uCtrlStyle ? _widths[0] : 0);
             fixedWidth = varWidth = 0;
             for (i = 1; i <= _cols; i++) {
                 if (0 != _colinfos[i - 1].width) {
@@ -190,14 +203,16 @@ public:
                     lastVarCol = i;
                 }
             }
-            cx -= varWidth;
-            t = cx / varCols;
-            for (i = 1; i <= _cols; i++) {
-                if (0 == _colinfos[i - 1].width) {
-                    _widths[i] += t;
+            if (varCols > 0) {
+                cx -= varWidth;
+                t = cx / varCols;
+                for (i = 1; i <= _cols; i++) {
+                    if (0 == _colinfos[i - 1].width) {
+                        _widths[i] += t;
+                    }
                 }
+                _widths[lastVarCol] += (cx % varCols);
             }
-            _widths[lastVarCol] += (cx % varCols);
         }
         /* translate the width of column to position on layer */
         for (i = 1; i <= _cols; i++)
@@ -216,15 +231,24 @@ public:
 
         return TRUE;
     }
+    VOID CalcScrollRegion(Layer *layer, LRect& rcScroll)
+    {
+        // CalcAxisArea(rcScroll);
+        __super::CalcScrollRegion(layer, rcScroll);
+
+        LRect rcFix;
+        GetFixedRect(rcFix);
+        rcScroll.top = rcFix.bottom;
+    }
 
     virtual VOID CalcLayerSize(Layer *layer, UINT drawFlags, int& cx, int& cy)
     {
-                LFont font;//(dc);
-                font.CreateFont(_T("Times New Roman"), 12);
-                layer->dc.SelectObject(font);
+                LFont font(layer->dc);
+                font.CreateFont(_T("Times New Roman"), 15);
+                //layer->dc.SelectObject(font);
 
         Layout(layer->dc);
-        cx = _widths[_cols] + 1 + 20;
+        cx = _widths[_cols] + 1;
         cy = _heights[_rows] + 1;
     }
 
@@ -247,10 +271,10 @@ public:
     }
     VOID GetLineNumberRect(INT row, LRect& rc)
     {
-        if (!(LLVS_ROWNUMBER & _uCtrlStyle)) {
-            rc.Zero();
-            return;
-        }
+        //if (!(LLVS_ROWNUMBER & _uCtrlStyle)) {
+        //    rc.Zero();
+        //    return;
+        //}
         GetRowRect(row, rc);
         rc.right = rc.left + 1;
         rc.left = 0;
@@ -278,23 +302,26 @@ public:
         LRect rc;
         LBrush br(dc);
         LPen pen(dc);
-        br.CreateSolidBrush(RGB(0, 64, 0));
+        br.CreateSolidBrush(RGB(214, 219, 233));
         pen.CreatePen(PS_SOLID, 1, _lineColor);
-        dc.SetTextColor(RGB(0, 0, 0));
+        //dc.SetTextColor(RGB(0, 0, 0));
 
-        if (LLVS_ROWNUMBER & _uCtrlStyle) {
-            //GetRowRect(0, rc);
-            //rc.right = rc.left + 1;
-            //rc.left = 0;
-            GetLineNumberRect(0, rc);
-            //dc.Rectangle(rc);
-            //LSTR str;
-            //str = row;// -(LLVS_HEADER & _uCtrlStyle ? 1 : 0);
-            //LFont fNbr(dc);
-            //fNbr.CreateFont(_T("Times New Roman"), 10, 0, RGB(128, 128, 128));
-            //rc.right -= 4;
-            dc.DrawText(_T("# "), rc/*, DT_SINGLELINE | DT_RIGHT | DT_VCENTER*/);
-        }
+        LFont ft(dc);
+        ft.CreateFont(_T("Tahoma"), 13, FW_BOLD, RGB(0, 0, 0));
+
+        //if (LLVS_ROWNUMBER & _uCtrlStyle) {
+        //    //GetRowRect(0, rc);
+        //    //rc.right = rc.left + 1;
+        //    //rc.left = 0;
+        //    GetLineNumberRect(0, rc);
+        //    //dc.Rectangle(rc);
+        //    //LSTR str;
+        //    //str = row;// -(LLVS_HEADER & _uCtrlStyle ? 1 : 0);
+        //    //LFont fNbr(dc);
+        //    //fNbr.CreateFont(_T("Times New Roman"), 10, 0, RGB(128, 128, 128));
+        //    //rc.right -= 4;
+        //    dc.DrawText(_T("# "), rc/*, DT_SINGLELINE | DT_RIGHT | DT_VCENTER*/);
+        //}
 
         for (i = 0; i < _cols; i++) {
             GetCellRect(0, i, rc);
@@ -307,28 +334,39 @@ public:
     {
         //LSTR str;
         //str.Format(_T("NO TITLE. table info: rows %d, cols %d"), _rows, _cols);
+        LFont ft(dc);
+        ft.CreateFont(_T("Times New Roman"), rc.Height() - 3, FW_BOLD);
         dc.DrawText(_title, rc);
+            //LFont ft0(dc);
+            //ft0.CreateFont(_T("Times New Roman"), 40, FW_BOLD, RGB(0, 0, 255));
+            //dc.DrawText(_T("_title"), rc);
     }
     virtual VOID DrawCell(LDC &dc, int row, int col, LRect &rc, LRect &rcText)
     {
-        if (col == 2)
-        {
-            float f = (float)rand() /(float)RAND_MAX;
-            LRect rc0 = rcText;
-            rc0.right = rc0.left +(int)((float)rcText.Width() * f);
-            LBrush br(dc);
-            br.CreateSolidBrush(RGB(255, 255, 0));
-            dc.Rectangle(rc0);
-            LSTR str;
-            str.Format(_T("%.2f%%"),(float)(rc0.right - rc0.left) / 100.0);
-            dc.DrawText(str, rc0);
-        }
-        else
-        {
-            LSTR str;
-            str.Format(_T("[%d, %d] = %d"), row, col, rand());
-            dc.DrawText(str, rcText);
-        }
+            if (col == 2)
+            {
+                float f = (float)rand() /(float)RAND_MAX;
+                LRect rc0 = rcText;
+                rc0.right = rc0.left +(int)((float)rcText.Width() * f);
+                LBrush br(dc);
+                br.CreateSolidBrush(RGB(255, 255, 0));
+                dc.Rectangle(rc0);
+                LSTR str;
+                str.Format(_T("%.2f%%"),(float)(rc0.right - rc0.left) / 100.0);
+                dc.DrawText(str, rc0);
+            }
+            else if (col == 0)
+            {
+                LSTR str;
+                str.Format(_T("%d"), row);
+                dc.DrawText(str, rcText);
+            }
+            else
+            {
+                LSTR str;
+                str.Format(_T("[%d, %d] = %d"), row, col, rand());
+                dc.DrawText(str, rcText);
+            }
     }
     virtual VOID DrawRow(INT row, LDC& dc, BOOL bChkSelected = TRUE)
     {
@@ -344,39 +382,43 @@ public:
         if (bChkSelected) {
             br.CreateSolidBrush(_selected.bgColor);
             pen.CreatePen(PS_SOLID, 1, _selected.bdrColor);
-            dc.SetTextColor(_selected.textColor);
+            //dc.SetTextColor(_selected.textColor);
         } else {
             br.CreateSolidBrush(_rowcolors[row & 1]);
             pen.CreatePen(PS_SOLID, 1, _lineColor);
-            dc.SetTextColor(RGB(0, 0, 0));
+            //dc.SetTextColor(RGB(0, 0, 0));
         }
+        LFont ft(dc);
+        ft.CreateFont(_T("Tahoma"), 13, FW_NORMAL, bChkSelected ? _selected.textColor : RGB(0, 0, 0));
+
         GetRowRect(row, rc);
-        {
-            LBrush br0(dc);
-            br0.CreateSolidBrush(bChkSelected ? RGB(0, 255, 0) : _lineColor);
-            dc.FrameRect(rc, br0);
-        }
+        //{
+        //    LBrush br0(dc);
+        //    br0.CreateSolidBrush(bChkSelected ? RGB(0, 255, 0) : _lineColor);
+        //    dc.FrameRect(rc, br0);
+        //}
         //rc.left += 50;
         //rc.right -= 200;
         //dc.Rectangle(rc);
 #if 1
-        if (LLVS_ROWNUMBER & _uCtrlStyle) {
-            //rc.right = rc.left - 3;
-            //rc.left = 0;
-            LSTR str;
-            //str = row;// -(LLVS_HEADER & _uCtrlStyle ? 1 : 0);
-            //LFont fNbr(dc);
-            //fNbr.CreateFont(_T("Times New Roman"), 10, 0, RGB(128, 128, 128));
-            GetLineNumberRect(row, rc);
-            str.Format(_T("%d "), row);
-            dc.DrawText(str, rc/*, DT_SINGLELINE | DT_RIGHT | DT_VCENTER*/);
-        }
+        //if (LLVS_ROWNUMBER & _uCtrlStyle) {
+        //    //rc.right = rc.left - 3;
+        //    //rc.left = 0;
+        //    LSTR str;
+        //    //str = row;// -(LLVS_HEADER & _uCtrlStyle ? 1 : 0);
+        //    //LFont fNbr(dc);
+        //    //fNbr.CreateFont(_T("Times New Roman"), 10, 0, RGB(128, 128, 128));
+        //    GetLineNumberRect(row, rc);
+        //    str.Format(_T("%d "), row);
+        //    dc.DrawText(str, rc/*, DT_SINGLELINE | DT_RIGHT | DT_VCENTER*/);
+        //}
         //LPen pen(dc);
         //pen.CreatePen(PS_SOLID, 1, _lineColor);
         for (col = 0; col < _cols; col++) {
             GetCellRect(row, col, rc);
             GetCellTextRect(row, col, rcText);
-            dc.Rectangle(rc);
+            if (!(_colinfos[col].flags & LLVS_NOBORDER))
+                dc.Rectangle(rc);
             DrawCell(dc, row, col, rc, rcText);
             //// dc.Rectangle(rc);
             //LSTR str;
@@ -393,12 +435,12 @@ public:
                 dc.Rectangle(rc);
             }
         }
-        GetRowRect(row, rc);
-        {
-            LBrush br0(dc);
-            br0.CreateSolidBrush(bChkSelected ? RGB(255, 0, 0) : _lineColor);
-            dc.FrameRect(rc, br0);
-        }
+        //GetRowRect(row, rc);
+        //{
+        //    LBrush br0(dc);
+        //    br0.CreateSolidBrush(bChkSelected ? RGB(255, 0, 0) : _lineColor);
+        //    dc.FrameRect(rc, br0);
+        //}
 
 #endif
     }
@@ -489,11 +531,18 @@ public:
     }
     BOOL HitTest(LPoint& pt, INT& row, INT& col)
     {
+        LPoint pt0 = pt;
+        LRect rcFix;
+
+        GetFixedRect(rcFix);
+        if (!rcFix.PtInRect(pt0))
+            _curLayer->ClientToLayer(pt0);
+
         INT i;
         row = -1;
         for (i = (LLVS_HEADER & _uCtrlStyle) ? 1 : 0; i < _rows; i++)
         {
-            if (pt.y >= _heights[i] && pt.y <= _heights[i + 1]) {
+            if (pt0.y >= _heights[i] && pt0.y <= _heights[i + 1]) {
                 row = i;
                 break;
             }
@@ -502,7 +551,7 @@ public:
         col = -1;
         for (i = 0; i <= _cols; i++)
         {
-            if (pt.x >= _widths[i] && pt.x <= _widths[i + 1]) {
+            if (pt0.x >= _widths[i] && pt0.x <= _widths[i + 1]) {
                 col = i;
                 break;
             }
@@ -527,13 +576,14 @@ public:
         GetFixedRect(rcFixed);
         // if (_fixedRows > 0) {
         if (rcFixed.Size() > 0) {
-            INT t = dc.Save();
+            //INT t = dc.Save();
             LRect rc = _curLayer->viewPort;
             //GetClientRect(rc);
             rc.top = rcFixed.bottom;// _heights[_fixedRows] + 1;
             dc.IntersectClipRect(rc);
             __super::OnPaint(dc);
-            dc.Restore(t);
+            //dc.Restore(t);
+
             //rc = _rcDraw;
             //rc.bottom = _heights[_fixedRows] + 1;
             LPoint pt = _curLayer->offset - _ptDragDlt;
@@ -553,16 +603,20 @@ public:
     LRESULT OnLButtonDown(DWORD dwFlags, LPoint& pt)
     {
        (VOID)__super::OnLButtonDown(dwFlags, pt);
-        LPoint pt0 = pt;
-        LRect rcFix;
-        GetFixedRect(rcFix);
-        if (!rcFix.PtInRect(pt0))
-            _curLayer->ClientToLayer(pt0);
+        //LPoint pt0 = pt;
+        //LRect rcFix;
+        //GetFixedRect(rcFix);
+        //if (!rcFix.PtInRect(pt0))
+        //    _curLayer->ClientToLayer(pt0);
+        if (_curLayer->PtInScrollBar(pt))
+            return 0;
+
+        SetFocus();
 
         INT row = _selected.row;
         INT col = _selected.col;
         // _nActiveRow = -1;
-        if (HitTest(pt0, row, col))
+        if (HitTest(pt, row, col))
         {
             if (row != _selected.row) {
                 //_nActiveRow = t;
@@ -579,6 +633,37 @@ public:
         //_nActiveRow = -1;
         //_nMouseStatus |= LVIEW_LBUTTONDOWN;
         //return OnButtonDown(dwFlags, pt);
+        return 0;
+    }
+
+    LRESULT OnMouseWheel(UINT nFlags, SHORT zDelta, LPoint& pt) 
+    {
+        LPoint pt0;
+        pt0.x = _widths[0];
+        pt0.y = _heights[_fixedRows] + 1 + 1;
+        
+        int row = -1, col = -1, amount;
+        amount = zDelta > 0 ? -1 : 1;
+        if (GetKeyState(VK_LCONTROL) & 0x8000)
+            amount *= 10;
+
+        HitTest(pt0, row, col);
+        row += amount;
+        row = max(row, _fixedRows);
+        row = min(row, _rows - _fixedRows);
+        //if (row < _fixedRows || row >= _rows)
+        //    return 0;
+
+        pt0.y = _heights[row];
+        _curLayer->LayerToClient(pt0);
+        int dltY = pt0.y - _heights[_fixedRows];
+        if (dltY == 0)
+            return 0;
+        _curLayer->offset.y += dltY;
+        //if (_curLayer->offset.y < 0)
+        //    int 
+        // _curLayer->DrawScrollBar()
+        InvalidateRect(NULL);
         return 0;
     }
 };

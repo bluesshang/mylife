@@ -108,6 +108,7 @@
     <ClInclude Include="utils\larray.h" />
     <ClInclude Include="utils\lrect.h" />
     <ClInclude Include="utils\lstr.h" />
+    <ClInclude Include="utils\lutil.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="FavoritedStock.cpp">

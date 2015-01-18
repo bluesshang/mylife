@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "..\stdafx.h"
+#include "..\utils\lutil.h"
 
 #define LGDI_CHECK_HGDIOBJ() {if (NULL == m_hGdi) return FALSE;}
 
@@ -33,7 +34,8 @@ public:
     void Detach()
     {
         if (NULL != _hdc && NULL != _hOldGdi) {
-           (VOID)::SelectObject(_hdc, _hOldGdi);
+            HGDIOBJ ret = ::SelectObject(_hdc, _hOldGdi);
+            LWIN_ASSERT(ret != NULL);
             _hOldGdi = NULL;
         }
     }
@@ -104,6 +106,14 @@ public:
         {
             _clrOldText = SetTextColor(_hdc, clrText);
         }
+        {
+            HGDIOBJ hlast = GetCurrentObject(_hdc, OBJ_FONT);
+            LOGFONT lf;
+            if (hlast != NULL)
+            {
+                GetObject(hlast, sizeof(lf), &lf);
+            }
+        }
         Attach();
         return TRUE;
     }
@@ -152,7 +162,9 @@ public:
         LDC hdc0(CreateCompatibleDC(NULL));
         LRect rc0 = {0, 0, rc.right - rc.left, rc.bottom - rc.top};
         HBITMAP hbm0 = CreateCompatibleBitmap(_hdc, rc0.right, rc0.bottom);
+        BOOL ret;
         ::SelectObject(hdc0, hbm0);
+        {
         LPoint pt0(0, 0);
         LBrush br0(hdc0);
         LPen pen(hdc0);
@@ -160,10 +172,10 @@ public:
         pen.CreatePen(PS_SOLID, 1, clr0);
         br0.CreateSolidBrush(clr0);
         ::RoundRect(hdc0, 0, 0, rc0.right, rc0.bottom, nWidth, nHeight);
-        BOOL ret;
         //BOOL ret = TransparentBlt(rc, hdc0, pt0, RGB(0, 0, 0));
         ret = AlphaBlend(rc, hdc0, pt0, (int)(((float)transparency / 100.0) * 255.0), RGB(0, 0, 0));
         //BOOL ret = BitBlt(rc, hdc0, pt0);
+        }
         ::DeleteObject(hdc0);
         ::DeleteObject(hbm0);
         return ret;

@@ -141,8 +141,8 @@ public:
         TEXTMETRIC tm;
         dc.GetTextMetrics(&tm);
                     tm.tmHeight += 4;
-                    if (row & 1)
-                        tm.tmHeight += 10;
+                    /*if (row & 1)
+                        tm.tmHeight += 10;*/
                     if (row == 0)
                         tm.tmHeight = 30;
                     if (row == 20)
@@ -340,6 +340,8 @@ public:
             //LFont ft0(dc);
             //ft0.CreateFont(_T("Times New Roman"), 40, FW_BOLD, RGB(0, 0, 255));
             //dc.DrawText(_T("_title"), rc);
+        ft.CreateFont(_T("Tahoma"), 11, FW_NORMAL, RGB(0, 0, 255));
+        dc.DrawText(_T("18/01/2015"), rc, DT_RIGHT | DT_BOTTOM | DT_SINGLELINE );
     }
     virtual VOID DrawCell(LDC &dc, int row, int col, LRect &rc, LRect &rcText)
     {
@@ -569,6 +571,17 @@ public:
     }
     VOID OnPaint(LDC& dc)
     {
+        __super::OnPaint(dc);
+
+        LRect rcFixed;
+        GetFixedRect(rcFixed);
+        if (rcFixed.Size() > 0) {
+            LPoint pt;
+            dc.BitBlt(rcFixed, _curLayer->dc, pt);
+        }
+    }
+    VOID OnPaintx(LDC& dc)
+    {
         LRect rcFixed;
         if (0 != _uRedrawFlags)
             __super::OnPaint(dc);
@@ -636,8 +649,13 @@ public:
         return 0;
     }
 
+    //BOOL wheeling = 0;
+    #define LLV_MOUSEWHEEL_END 1
     LRESULT OnMouseWheel(UINT nFlags, SHORT zDelta, LPoint& pt) 
     {
+        //if (wheeling == TRUE)
+        //    return 0;
+
         LPoint pt0;
         pt0.x = _widths[0];
         pt0.y = _heights[_fixedRows] + 1 + 1;
@@ -660,10 +678,20 @@ public:
         if (dltY == 0)
             return 0;
         _curLayer->offset.y += dltY;
-        //if (_curLayer->offset.y < 0)
-        //    int 
-        // _curLayer->DrawScrollBar()
-        InvalidateRect(NULL);
+        _curLayer->flags |= LAYER_SHOW_SCROLLBAR_ALWAYS;
+        InvalidateRect(NULL, FALSE, TRUE);
+        SetTimer(*this, LLV_MOUSEWHEEL_END, 100, NULL);
+        return 0;
+    }
+
+    LRESULT OnTimer(UINT tmrId)
+    {
+        if (tmrId == LLV_MOUSEWHEEL_END) {
+            KillTimer(*this, tmrId);
+            _curLayer->flags &= ~LAYER_SHOW_SCROLLBAR_ALWAYS;
+            InvalidateRect(NULL, FALSE, TRUE);
+        }
+
         return 0;
     }
 };

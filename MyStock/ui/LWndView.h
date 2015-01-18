@@ -104,6 +104,7 @@ typedef struct tagLVIEW_TRACKING_RNG
 
 #define LAYER_NO_HSCROLLBAR 1
 #define LAYER_NO_VSCROLLBAR 2
+#define LAYER_SHOW_SCROLLBAR_ALWAYS 4
 
 class Layer
 {
@@ -318,7 +319,7 @@ public:
 
     void DrawScrollBar(LDC& dcDst, const LPoint& dragAmount)
     {
-        if (dragAmount.x || dragAmount.y || sbHorz._flags || sbVert._flags) {
+        if (dragAmount.x || dragAmount.y || sbHorz._flags || sbVert._flags || (flags & LAYER_SHOW_SCROLLBAR_ALWAYS)) {
             if (/*!(wndCtrlStyle & LVS_NO_HORZ_SCROLLBAR) && */sbHorz.enabled) {
                 sbHorz.SetPos(drawOffset.x);
                 sbHorz.Draw(dcDst);
@@ -998,12 +999,12 @@ public:
                 continue;
             layer->BitBlt(_cachedLayer->dc, /*layer != _curLayer ? ptZero : */_ptDragDlt);
         }
-_curLayer->BitBlt(_cachedLayer->dc, _ptDragDlt); /* draw the selected layer at the most top */
+        _curLayer->BitBlt(_cachedLayer->dc, _ptDragDlt); /* draw the selected layer at the most top */
         /* draw tracking layer */
         _cachedLayer->dc.TransparentBlt(_rcClient, _trackingLayer->dc, 0, 0, _trackingLayer->clrBkgrnd);
         //for (int i = 0; i < _layers.Count(); i++)
         //    _layers[i]->DrawScrollBar(_cachedLayer->dc, _layers[i] != _curLayer ? ptZero : _ptDragDlt);
-_curLayer->DrawScrollBar(_cachedLayer->dc, _ptDragDlt);
+        _curLayer->DrawScrollBar(_cachedLayer->dc, _ptDragDlt);
         // _cachedLayer->dc.BitBlt(_rcClient, _trackingLayer->dc, 0, 0);
         // _cachedLayer->dc.AlphaBlend(_rcClient, _trackingLayer->dc, LPoint(0,0), 90);
         // dc.BitBlt(_rcClient, _trackingLayer->dc, 0, 0);

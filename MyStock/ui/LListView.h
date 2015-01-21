@@ -115,6 +115,7 @@ public:
                     _rowcolors[0] = RGB(240, 240, 240);
                     //_fixedRows = 0;
                     _fixedRows += 1;
+                    _fixedCols = 1;
 
                     for (int i = 0; i < _cols; i++) {
                         _colinfos[i].name.Format(_T("header#%d"), i);
@@ -234,11 +235,12 @@ public:
     VOID CalcScrollRegion(Layer *layer, LRect& rcScroll)
     {
         // CalcAxisArea(rcScroll);
-        __super::CalcScrollRegion(layer, rcScroll);
+        //__super::CalcScrollRegion(layer, rcScroll);
 
-        LRect rcFix;
-        GetFixedRect(rcFix);
-        rcScroll.top = rcFix.bottom;
+        //LRect rcFix;
+        //GetFixedRect(rcFix);
+        //rcScroll.top = rcFix.bottom;
+        GetUnfixedRect(rcScroll);
     }
 
     virtual VOID CalcLayerSize(Layer *layer, UINT drawFlags, int& cx, int& cy)
@@ -295,6 +297,11 @@ public:
         GetLayerRect(rc);
         rc.left = _widths[0];
         rc.bottom = _heights[0];
+        int viewCx = _curLayer->viewPort.Width();
+        rc.right = rc.left + min(_curLayer->cx, viewCx);
+        //rc.Intersection(_curLayer->viewPort);
+        //rc = _curLayer->viewPort;
+        //rc.bottom = _heights[1];
     }
     virtual VOID DrawHeader(LDC& dc)
     {
@@ -534,11 +541,12 @@ public:
     BOOL HitTest(LPoint& pt, INT& row, INT& col)
     {
         LPoint pt0 = pt;
-        LRect rcFix;
+        LRect rcUnfix;
 
-        GetFixedRect(rcFix);
-        if (!rcFix.PtInRect(pt0))
+        GetUnfixedRect(rcUnfix);
+        if (rcUnfix.PtInRect(pt0))
             _curLayer->ClientToLayer(pt0);
+        else pt0 -= _curLayer->viewPort.lt;
 
         INT i;
         row = -1;
@@ -549,7 +557,7 @@ public:
                 break;
             }
         }
-        /* draw vertical line */
+
         col = -1;
         for (i = 0; i <= _cols; i++)
         {
@@ -560,54 +568,128 @@ public:
         }
         return -1 != row/* || -1 != col*/;
     }
+
+    //VOID GetFixedRect(LRect& rc)
+    //{
+    //    rc.Zero();
+    //    if (_fixedRows > 0) {
+    //        rc = _curLayer->viewPort;// _rcDraw;
+    //        rc.bottom = _heights[_fixedRows] + 1;
+    //    }
+    //}
+
     /* the fixed region include the title, header, top N fixed rows */
-    VOID GetFixedRect(LRect& rc)
+    VOID GetUnfixedRect(LRect& rc) /* rc in client coordination */
     {
-        rc.Zero();
-        if (_fixedRows > 0) {
-            rc = _curLayer->viewPort;// _rcDraw;
-            rc.bottom = _heights[_fixedRows] + 1;
-        }
+        rc = _curLayer->viewPort;
+        if (_fixedRows > 0/* && _curLayer->sbVert.enabled*/)
+            rc.top += (_heights[_fixedRows] + 1);
+        if (_fixedCols > 0/* && _curLayer->sbHorz.enabled*/)
+            rc.left += (_widths[_fixedCols] + 1);
     }
+
     VOID OnPaint(LDC& dc)
     {
-        __super::OnPaint(dc);
-
-        LRect rcFixed;
-        GetFixedRect(rcFixed);
-        if (rcFixed.Size() > 0) {
-            LPoint pt;
-            dc.BitBlt(rcFixed, _curLayer->dc, pt);
-        }
-    }
-    VOID OnPaintx(LDC& dc)
-    {
-        LRect rcFixed;
-        if (0 != _uRedrawFlags)
+        // LRect rcFixed;
+        if (0 != _uRedrawFlags || _fixedCols == 0 && _fixedRows == 0)
             __super::OnPaint(dc);
 
-        GetFixedRect(rcFixed);
-        // if (_fixedRows > 0) {
-        if (rcFixed.Size() > 0) {
-            //INT t = dc.Save();
-            LRect rc = _curLayer->viewPort;
-            //GetClientRect(rc);
-            rc.top = rcFixed.bottom;// _heights[_fixedRows] + 1;
-            dc.IntersectClipRect(rc);
+        if (_fixedCols > 0 || _fixedRows > 0) {
+            LRect rcUnfixed;
+            GetUnfixedRect(rcUnfixed);
+            // dc.IntersectClipRect(rcUnfixed); /* draw the unfixed region (scrollable) only */
+            HRGN rgnClient = _rcClient.CreateRgn();//_curLayer->viewPort.CreateRgn();
+            HRGN rgnUnfixed = rcUnfixed.CreateRgn();
+            HRGN rgnView = _curLayer->viewPort.CreateRgn();
+            int r = CombineRgn(rgnClient, rgnClient, rgnView, RGN_DIFF);
+            LWIN_ASSERT(r != ERROR);
+            r = CombineRgn(rgnClient, rgnClient, rgnUnfixed, RGN_OR);
+            LWIN_ASSERT(r != ERROR);
+            dc.SelectClipRgn(rgnClient);
             __super::OnPaint(dc);
-            //dc.Restore(t);
+            DeleteObject(rgnClient);
+            DeleteObject(rgnUnfixed);
+            DeleteObject(rgnView);
 
-            //rc = _rcDraw;
-            //rc.bottom = _heights[_fixedRows] + 1;
+            //LBrush br(dc);
+            //br.CreateSolidBrush(RGB(255, 0, 0));
+            //FillRgn(dc, rgnClient, br);
+
+            //return;
+            LRect rcTitle;
+            GetTitleRect(rcTitle); /* rcTitle in canvas coordination */
+            rcTitle.MoveTo(_curLayer->viewPort.lt);
+            dc.BitBlt(rcTitle, _curLayer->dc, 0, 0);
+            //dc.Rectangle(rcTitle);
+
+            // HRGN hrgn = CreateRectRgn()
+            //dc.Rectangle(rcUnfixed);
             LPoint pt = _curLayer->offset - _ptDragDlt;
-            // _pThis->AdjustLayerDrawOffset(_curLayer, pt);
             _curLayer->AdjustLayerDrawOffset(pt);
-            pt.y = 0;
-            //GetFixedRect(rc);
-            dc.BitBlt(rcFixed, _curLayer->dc, pt);
-            // dc.BitBlt(_rcDraw.left, _rcDraw.top, )
-            //DrawScrollbar(dc);
+
+            LRect rc = _curLayer->viewPort;
+            /* the fixed rows */
+            rc.top = rcTitle.bottom;
+            rc.right = rcTitle.right;
+            rc.left = rcUnfixed.left;
+            rc.bottom = rcUnfixed.top;
+            dc.BitBlt(rc, _curLayer->dc, pt.x + (rcUnfixed.left - rcTitle.left), rcTitle.Height());
+
+            /* the fixed cols */
+            rc.left = rcTitle.left;
+            rc.bottom = rcUnfixed.bottom;
+            rc.right = rcUnfixed.left;
+            rc.top = rcUnfixed.top;
+            dc.BitBlt(rc, _curLayer->dc, 0, pt.y + (rcUnfixed.top - rcTitle.top));
+
+            /* the left-top corner */
+            rc.left = rcTitle.left;
+            rc.top = rcTitle.bottom;
+            rc.bottom = rcUnfixed.top;
+            rc.right = rcUnfixed.left;
+            dc.BitBlt(rc, _curLayer->dc, 0, rcTitle.Height());
         }
+
+        ///* repaint the fixed rows region if any */
+        //GetFixedRect(rcFixed);
+        //// if (_fixedRows > 0) {
+        //if (rcFixed.Size() > 0) {
+        //    //INT t = dc.Save();
+        //    LRect rc = _curLayer->viewPort;
+        //    //GetClientRect(rc);
+        //    rc.top = rcFixed.bottom;// _heights[_fixedRows] + 1;
+        //        rc.left = _widths[_fixedCols];
+        //    dc.IntersectClipRect(rc);
+        //    __super::OnPaint(dc);
+        //    //dc.Restore(t);
+
+        //    //rc = _rcDraw;
+        //    //rc.bottom = _heights[_fixedRows] + 1;
+        //    LPoint pt = _curLayer->offset - _ptDragDlt;
+        //    // _pThis->AdjustLayerDrawOffset(_curLayer, pt);
+        //    _curLayer->AdjustLayerDrawOffset(pt);
+        //    int yyy = pt.y;
+        //    pt.y = 0;
+        //    //GetFixedRect(rc);
+        //        rcFixed.left = _widths[_fixedCols];
+        //        pt.x += _widths[_fixedCols];
+        //    dc.BitBlt(rcFixed, _curLayer->dc, pt);
+
+        //    LRect rcFixedCol = _curLayer->viewPort;
+        //    rcFixedCol.right = _widths[_fixedCols] + 1;
+        //    pt.y = yyy + rcFixed.bottom;
+        //    pt.x = 0;
+        //    rcFixedCol.top = rcFixed.bottom;
+        //    dc.BitBlt(rcFixedCol, _curLayer->dc, pt);
+        //    // dc.BitBlt(_rcDraw.left, _rcDraw.top, )
+        //    //DrawScrollbar(dc);
+
+        //    LRect rcTl = _curLayer->viewPort;
+        //    rcTl.right = _widths[_fixedCols] + 1;
+        //    rcTl.bottom = rcFixed.bottom;
+        //    pt.x = 0; pt.y = 0;
+        //    dc.BitBlt(rcTl, _curLayer->dc, pt);
+        //}
         //else {
         //    __super::OnPaint(dc);
         //}
@@ -631,7 +713,7 @@ public:
         // _nActiveRow = -1;
         if (HitTest(pt, row, col))
         {
-            if (row != _selected.row) {
+            if (row != _selected.row || col != _selected.col) {
                 //_nActiveRow = t;
                 //SetRedrawFlags(REDRAW_PAINT);
                 //InvalidateRect(NULL, FALSE);
@@ -640,6 +722,16 @@ public:
                     DrawRow(_selected.row, _curLayer->dc, FALSE);
                 DrawRow(row, _curLayer->dc, TRUE);
                 _selected.row = row;
+                _selected.col = col;
+
+                LRect rc;
+                GetCellRect(row, col, rc);
+                LPen pen(_curLayer->dc);
+                pen.CreatePen(PS_SOLID, 1, RGB(255, 0, 0));
+                LBrush br(_curLayer->dc);
+                br.CreateStockObject(NULL_BRUSH);
+                //_curLayer->dc.FrameRect(rc, br);
+                _curLayer->dc.Rectangle(rc);
             }
             return 0;
         }
@@ -657,8 +749,11 @@ public:
         //    return 0;
 
         LPoint pt0;
-        pt0.x = _widths[0];
+        pt0.x = _widths[_fixedCols];
         pt0.y = _heights[_fixedRows] + 1 + 1;
+        pt0.x += _curLayer->viewPort.left + 10; // TODO
+        pt0.y += _curLayer->viewPort.top;
+        // _curLayer->LayerToClient(pt0);
         
         int row = -1, col = -1, amount;
         amount = zDelta > 0 ? -1 : 1;
@@ -668,7 +763,8 @@ public:
         HitTest(pt0, row, col);
         row += amount;
         row = max(row, _fixedRows);
-        row = min(row, _rows - _fixedRows);
+        int maxRow = _rows - _fixedRows + ((LLVS_HEADER & _uCtrlStyle) ? 1 : 0);
+        row = min(row, maxRow);
         //if (row < _fixedRows || row >= _rows)
         //    return 0;
 

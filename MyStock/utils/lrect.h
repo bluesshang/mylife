@@ -121,6 +121,12 @@ public:
         right = left + Height();
         bottom = top + width;
     }
+    void MoveTo(LPoint& pt)
+    {
+        int x = pt.x - left;
+        int y = pt.y - top;
+        Offset(x, y);
+    }
     /* center rectangle on specifed region if the region larger than the rectange */
     VOID Center(int cx, int cy)
     {
@@ -137,6 +143,10 @@ public:
         }
 
         Offset(x, y);
+    }
+    HRGN CreateRgn()
+    {
+        return CreateRectRgnIndirect(&_rc);
     }
 private:
     //TCHAR str[80];

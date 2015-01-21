@@ -53,7 +53,7 @@ class StockHome :
     LWndTodo *wndTodo;
     FavoritedStock *wndFav;
     LDVTable tblRltvStocks;
-    LListView lvTest;
+    LListView lvTest, lvTest2;
     LAxisView avKLine, avVol, avMcad;
 
     LSyncMsgObj msgSync;
@@ -268,7 +268,7 @@ public:
             tblRltvStocks.Load(ds);
         }
 
-        lvTest.Create(this, 1000, 5, rc, _T("ListView Test: Realtime trade information"), LLVS_HEADER | LLVS_TITLE);
+        lvTest.Create(this, 20, 5, rc, _T("ListView Test: Realtime trade information"), LLVS_HEADER | LLVS_TITLE, 500);
         cell1.AddWnd(&lvTest);
 
         LFrameCell &cell2 = cell.cell(0, 0x20000, CELLPOS_END);
@@ -302,9 +302,12 @@ public:
         cell3.CreateTabWnd(this, LTS_BOTTOM, WS_VISIBLE | WS_CHILD/* | WS_BORDER*/);
         wndTodo = new LWndTodo;
         wndTodo->CreateChild(this, _T("To do list"), rc, 1029, 0, LVS_NO_STRETCH_CANVAS);
+
+        lvTest2.Create(this, 200, 5, rc, _T("ListView Test: Realtime trade information 222"), LLVS_HEADER | LLVS_TITLE, 1500);
+
         cell3.AddWnd(wndTodo, _T("TODO"));
         cell3.AddWnd(wndTodo, _T("基本资料"), RGB(255, 0, 0));
-        cell3.AddWnd(wndTodo, _T("Notices"));
+        cell3.AddWnd(&lvTest2, _T("Notices"));
         // cell3.SetActiveTabWnd(0);
         // cell3.AddWnd(wnd4);
         //wndTodo = new LWndTodo;

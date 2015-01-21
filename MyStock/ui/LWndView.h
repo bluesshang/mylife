@@ -255,10 +255,17 @@ public:
         ClientToLayer(rc.lt);
         ClientToLayer(rc.rb);
     }
+
     VOID LayerToClient(LPoint& pt)
     {
         pt += viewPort.lt;
         pt -= offset;
+    }
+
+    VOID LayerToClient(LRect& rc)
+    {
+        LayerToClient(rc.lt);
+        LayerToClient(rc.rb);
     }
 
     /* xpos in client coordination, not in layer */

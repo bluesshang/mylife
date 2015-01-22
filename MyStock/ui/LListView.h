@@ -54,6 +54,7 @@ class LListView : public LWndView<LListView>
         COLORREF bgColor, bdrColor, textColor;
     } _selected;
     LSTR _title;
+    LRect rcTitle, rcFixedRows, rcFixedCols, rcFixedRowCols, rcUnfixed; /* in client coordinate */
 public:
 
     LListView()
@@ -115,13 +116,14 @@ public:
                     _rowcolors[0] = RGB(240, 240, 240);
                     //_fixedRows = 0;
                     _fixedRows += 1;
-                    _fixedCols = 1;
+                    _fixedCols = 2;
 
                     for (int i = 0; i < _cols; i++) {
                         _colinfos[i].name.Format(_T("header#%d"), i);
                     }
                     for (int i = 1; i < _cols; i++) 
                         _colinfos[i].width = 0;
+                    _colinfos[1].width = 200;
         return TRUE;
     }
 
@@ -232,7 +234,7 @@ public:
 
         return TRUE;
     }
-    VOID CalcScrollRegion(Layer *layer, LRect& rcScroll)
+    VOID CalcScrollRegion(Layer *layer, LRect& rcScroll, SIZE& dltSize)
     {
         // CalcAxisArea(rcScroll);
         //__super::CalcScrollRegion(layer, rcScroll);
@@ -241,6 +243,9 @@ public:
         //GetFixedRect(rcFix);
         //rcScroll.top = rcFix.bottom;
         GetUnfixedRect(rcScroll);
+
+        dltSize.cx = -rcFixedCols.Width();
+        dltSize.cy = -(rcTitle.Height() + rcFixedRows.Height());
     }
 
     virtual VOID CalcLayerSize(Layer *layer, UINT drawFlags, int& cx, int& cy)
@@ -252,6 +257,30 @@ public:
         Layout(layer->dc);
         cx = _widths[_cols] + 1;
         cy = _heights[_rows] + 1;
+    }
+
+    virtual VOID CalcViewRegion(Layer *layer, LRect& rc)
+    {
+        __super::CalcViewRegion(layer, rc);
+
+        GetTitleRect(rcTitle); /* rcTitle in canvas coordination */
+        rcTitle.MoveTo(_curLayer->viewPort.lt);
+
+        GetUnfixedRect(rcUnfixed);
+        rcFixedRows.top = rcTitle.bottom;
+        rcFixedRows.right = rcTitle.right;
+        rcFixedRows.left = rcUnfixed.left;
+        rcFixedRows.bottom = rcUnfixed.top;
+
+        rcFixedCols.left = rcTitle.left;
+        rcFixedCols.bottom = rcUnfixed.bottom;
+        rcFixedCols.right = rcUnfixed.left;
+        rcFixedCols.top = rcUnfixed.top;
+
+        rcFixedRowCols.left = rcTitle.left;
+        rcFixedRowCols.top = rcTitle.bottom;
+        rcFixedRowCols.bottom = rcUnfixed.top;
+        rcFixedRowCols.right = rcUnfixed.left;
     }
 
     VOID GetCellRect(INT row, INT col, LRect& rc)
@@ -381,10 +410,11 @@ public:
     {
         INT col;
         LRect rc, rcText;
-        //if (0 == row && (LLVS_HEADER & _uCtrlStyle)) {
-        //    DrawHeader(dc);
-        //    return;
-        //}
+
+        if (0 == row && (LLVS_HEADER & _uCtrlStyle)) {
+            DrawHeader(dc);
+            return;
+        }
 
         LBrush br(dc);
         LPen pen(dc);
@@ -504,12 +534,12 @@ public:
             DrawTitle(dc, rc);
         }
 
-        row = 0;
-        if (LLVS_HEADER & _uCtrlStyle) {
-            DrawHeader(dc);
-            row = 1;
-        }
-        for (; row < _rows; row++) {
+        //row = 0;
+        //if (LLVS_HEADER & _uCtrlStyle) {
+        //    DrawHeader(dc);
+        //    row = 1;
+        //}
+        for (row = 0; row < _rows; row++) {
             DrawRow(row, dc, FALSE);
         }
         if (-1 != _selected.row)
@@ -538,25 +568,46 @@ public:
         //uFlags = 0;
         return TRUE;
     }
-    BOOL HitTest(LPoint& pt, INT& row, INT& col)
+
+    /* pt must be in client coordinate */
+    enum {HIT_TITLE, HIT_HEADER, HIT_CELL};
+    BOOL HitTest(LPoint& pt, INT& row, INT& col, UINT *hitFlags = NULL)
     {
         LPoint pt0 = pt;
-        LRect rcUnfix;
+        //LRect rcUnfix;
+        UINT32 hitFlags0;
 
-        GetUnfixedRect(rcUnfix);
-        if (rcUnfix.PtInRect(pt0))
-            _curLayer->ClientToLayer(pt0);
-        else pt0 -= _curLayer->viewPort.lt;
-
+        if (!_curLayer->viewPort.PtInRect(pt))
+            return FALSE;
+        //GetUnfixedRect(rcUnfix);
+        //if (rcUnfix.PtInRect(pt0))
+        //    _curLayer->ClientToLayer(pt0);
+        //else pt0 -= _curLayer->viewPort.lt;
+        _curLayer->ClientToLayer(pt0);
+        hitFlags0 = HIT_CELL;
+        if (rcFixedRows.PtInRect(pt)) {
+            pt0.y = pt.y - _curLayer->viewPort.top;
+        } else if (rcFixedCols.PtInRect(pt)) {
+            pt0.x = pt.x - _curLayer->viewPort.left;
+        } else if (!rcUnfixed.PtInRect(pt)) {
+            /* hit on rcFixedRowCols or rcTitle */
+            pt0 = pt - _curLayer->viewPort.lt;
+            if (rcTitle.PtInRect(pt))
+                hitFlags0 = HIT_TITLE;
+            // else if (rcFixedRowCols)
+        }
         INT i;
         row = -1;
-        for (i = (LLVS_HEADER & _uCtrlStyle) ? 1 : 0; i < _rows; i++)
+        // for (i = (LLVS_HEADER & _uCtrlStyle) ? 1 : 0; i < _rows; i++)
+        for (i = 0; i < _rows; i++)
         {
             if (pt0.y >= _heights[i] && pt0.y <= _heights[i + 1]) {
                 row = i;
                 break;
             }
         }
+        if ((LLVS_HEADER & _uCtrlStyle) && row == 0)
+            hitFlags0 = HIT_HEADER;
 
         col = -1;
         for (i = 0; i <= _cols; i++)
@@ -566,7 +617,10 @@ public:
                 break;
             }
         }
-        return -1 != row/* || -1 != col*/;
+
+        if (hitFlags != NULL)
+            *hitFlags = hitFlags0;
+        return -1 != row || -1 != col;
     }
 
     //VOID GetFixedRect(LRect& rc)
@@ -595,8 +649,8 @@ public:
             __super::OnPaint(dc);
 
         if (_fixedCols > 0 || _fixedRows > 0) {
-            LRect rcUnfixed;
-            GetUnfixedRect(rcUnfixed);
+            //LRect rcUnfixed;
+            //GetUnfixedRect(rcUnfixed);
             // dc.IntersectClipRect(rcUnfixed); /* draw the unfixed region (scrollable) only */
             HRGN rgnClient = _rcClient.CreateRgn();//_curLayer->viewPort.CreateRgn();
             HRGN rgnUnfixed = rcUnfixed.CreateRgn();
@@ -616,9 +670,8 @@ public:
             //FillRgn(dc, rgnClient, br);
 
             //return;
-            LRect rcTitle;
-            GetTitleRect(rcTitle); /* rcTitle in canvas coordination */
-            rcTitle.MoveTo(_curLayer->viewPort.lt);
+            //GetTitleRect(rcTitle); /* rcTitle in canvas coordination */
+            //rcTitle.MoveTo(_curLayer->viewPort.lt);
             dc.BitBlt(rcTitle, _curLayer->dc, 0, 0);
             //dc.Rectangle(rcTitle);
 
@@ -627,27 +680,23 @@ public:
             LPoint pt = _curLayer->offset - _ptDragDlt;
             _curLayer->AdjustLayerDrawOffset(pt);
 
-            LRect rc = _curLayer->viewPort;
+            //LRect rc = _curLayer->viewPort;
             /* the fixed rows */
-            rc.top = rcTitle.bottom;
-            rc.right = rcTitle.right;
-            rc.left = rcUnfixed.left;
-            rc.bottom = rcUnfixed.top;
-            dc.BitBlt(rc, _curLayer->dc, pt.x + (rcUnfixed.left - rcTitle.left), rcTitle.Height());
+            dc.BitBlt(rcFixedRows, _curLayer->dc, pt.x + (rcUnfixed.left - rcTitle.left), rcTitle.Height());
 
             /* the fixed cols */
-            rc.left = rcTitle.left;
-            rc.bottom = rcUnfixed.bottom;
-            rc.right = rcUnfixed.left;
-            rc.top = rcUnfixed.top;
-            dc.BitBlt(rc, _curLayer->dc, 0, pt.y + (rcUnfixed.top - rcTitle.top));
+            //rcFixedCols.left = rcTitle.left;
+            //rcFixedCols.bottom = rcUnfixed.bottom;
+            //rcFixedCols.right = rcUnfixed.left;
+            //rcFixedCols.top = rcUnfixed.top;
+            dc.BitBlt(rcFixedCols, _curLayer->dc, 0, pt.y + (rcUnfixed.top - rcTitle.top));
 
             /* the left-top corner */
-            rc.left = rcTitle.left;
-            rc.top = rcTitle.bottom;
-            rc.bottom = rcUnfixed.top;
-            rc.right = rcUnfixed.left;
-            dc.BitBlt(rc, _curLayer->dc, 0, rcTitle.Height());
+            //rcFixedRowCols.left = rcTitle.left;
+            //rcFixedRowCols.top = rcTitle.bottom;
+            //rcFixedRowCols.bottom = rcUnfixed.top;
+            //rcFixedRowCols.right = rcUnfixed.left;
+            dc.BitBlt(rcFixedRowCols, _curLayer->dc, 0, rcTitle.Height());
         }
 
         ///* repaint the fixed rows region if any */

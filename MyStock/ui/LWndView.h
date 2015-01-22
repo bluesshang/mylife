@@ -282,16 +282,16 @@ public:
         offset.y = t - (ypos - viewPort.top);
     }
 
-    void CalcScrollBarInfo(LRect& rcScrollArea)
+    void CalcScrollBarInfo(LRect& rcScrollArea, SIZE& dltSize)
     {
         INT sbx, sby;
 
         //UINT _uDragFlags = 0; // &= ~(LVIEW_DRAGDROP_HORZ | LVIEW_DRAGDROP_VERT);
 
-        sbx = cx - rcScrollArea.Width();
+        sbx = cx + dltSize.cx - rcScrollArea.Width();
             //_uDragFlags |= LVIEW_DRAGDROP_HORZ;
 
-        sby = cy - rcScrollArea.Height();
+        sby = cy + dltSize.cy - rcScrollArea.Height();
             //_uDragFlags |= LVIEW_DRAGDROP_VERT;
         sbVert.enabled = FALSE;
         sbHorz.enabled = FALSE;
@@ -707,7 +707,7 @@ public:
         //}
         //rc.Offset(x, y);
     }
-    VOID CalcScrollRegion(Layer *layer, LRect& rcScroll)
+    VOID CalcScrollRegion(Layer *layer, LRect& rcScroll, SIZE& dltSize)
     {
         rcScroll = layer->viewPort;
     }
@@ -818,8 +818,9 @@ public:
                     if (layer->viewPort.Height() > cy)
                         layer->viewPort.bottom = layer->viewPort.top + cy;
 
-                    _pThis->CalcScrollRegion(layer, rcScroll);
-                    layer->CalcScrollBarInfo(rcScroll);
+                    SIZE dltSize = {0};
+                    _pThis->CalcScrollRegion(layer, rcScroll, dltSize);
+                    layer->CalcScrollBarInfo(rcScroll, dltSize);
                     // TODO: layer->viewPort should intersect with the whole visible client area (not include rulers etc.)
                     // layer->viewPort.Intersection(_rcClient); /* draw region can't larger then the client region */
                 }

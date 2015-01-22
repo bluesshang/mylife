@@ -602,7 +602,7 @@ public:
         //_scaleInfo.origin.y = _curLayer->cy;
     }
 
-    VOID CalcScrollRegion(Layer *layer, LRect& rcScroll)
+    VOID CalcScrollRegion(Layer *layer, LRect& rcScroll, SIZE& dltSize)
     {
         CalcAxisArea(rcScroll);
     }

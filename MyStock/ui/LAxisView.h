@@ -629,12 +629,12 @@ public:
         for (int i = 0; i < layer->gv.Count(); i++)
         {
             //t = max(t, layer->gv[i]->Size(layer->id == Layer::EAGLE_EYE));
-            dmin = min(dmin, layer->gv[i]->GetMinInt(layer->id == Layer::EAGLE_EYE));
-            dmax = max(dmax, layer->gv[i]->GetMaxInt(layer->id == Layer::EAGLE_EYE));
+            dmin = min(dmin, layer->gv[i]->GetMinInt(layer->id != Layer::EAGLE_EYE));
+            dmax = max(dmax, layer->gv[i]->GetMaxInt(layer->id != Layer::EAGLE_EYE));
 
             if (layer->id == Layer::EAGLE_EYE) {
                 xmin = min(xmin, 0);
-                xmax = max(xmax, layer->gv[i]->Size(TRUE));
+                xmax = max(xmax, layer->gv[i]->Size(FALSE));
                 FilledLine *fl = (FilledLine *)layer->gv[i];
                 extraMax = max(extraMax, fl->extraBottom);
             } else {
@@ -703,8 +703,8 @@ public:
 
     VOID AddRuler(LAxisRuler *ruler)
     {
-        //_ASSERT(rulerId < 4);
-        _ASSERT(ruler != NULL);
+        //LWIN_ASSERT(rulerId < 4);
+        LWIN_ASSERT(ruler != NULL);
         _rulers.Add(ruler);
         AddMsgSync(ruler);
         //AddMouseSync(ruler);
@@ -857,7 +857,7 @@ public:
                 _DV *dv = _layers[i]->gv[0]->GetDV(NULL);
                 if (i != 1)
                     xPos += dv->dvs->x0;
-                if (xPos >= 0 && xPos < dv->Size(TRUE))
+                if (xPos >= 0 && xPos < dv->Size(FALSE))
                     yvalue = dv->GetInt(xPos);
             }
             str.Format(_T("\r\n[%s]#%d: %s (id %d, lines %d, offset(%d,%d),size(%d X %d), xwidth %d), xpos %d -> %d"), 
@@ -1506,7 +1506,7 @@ public:
                     if (eagle->gv.Count() > 0) {
                         _DV *dv = eagle->gv[0]->GetDV(NULL);
                         x1 = max(0, x1);
-                        x2 = min(x2, dv->Size(TRUE) - 1);
+                        x2 = min(x2, dv->Size(FALSE) - 1);
                         dv->dvs->x0 = x1;
                         dv->dvs->xn = x2;
                     }
@@ -1631,7 +1631,7 @@ public:
                     if (_curLayer->gv.Count() > 0) {
                         _DV *dv = _curLayer->gv[0]->GetDV(NULL);
                         x1 = max(0, x1);
-                        x2 = min(x2, dv->Size(TRUE) - 1);
+                        x2 = min(x2, dv->Size(FALSE) - 1);
                         dv->dvs->x0 = x1;
                         dv->dvs->xn = x2;
                     }

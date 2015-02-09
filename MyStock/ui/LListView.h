@@ -9,14 +9,15 @@
 #define LLVS_NOBORDER 1
 typedef struct tagLISTVIEW_COLINFO
 {
-    enum {LEFT, CENTER, RIGHT} align;
+    //enum {LEFT, CENTER, RIGHT} align;
+    UINT align;
     INT width, maxWidth;
     COLORREF bgColor;
     LSTR name;
     UINT flags;
     tagLISTVIEW_COLINFO()
     {
-        align = LEFT;
+        align = DT_LEFT | DT_SINGLELINE | DT_VCENTER;
         width = maxWidth = 0;
         bgColor = RGB(0, 0, 0);
         flags = 0;
@@ -34,16 +35,20 @@ typedef struct tagLISTVIEW_COLINFO
 #define LLVS_NOVLINE       (LVS_MAX_STYLE << 7)
 #define LLVS_NOHLINE       (LVS_MAX_STYLE << 8)
 #define LLVS_TITLE         (LVS_MAX_STYLE << 9)
+#define LLVS_ROW_HITTEST   (LVS_MAX_STYLE << 10)
+#define LLVS_COL_HITTEST   (LVS_MAX_STYLE << 11)
+#define LLVS_COL_SORT      (LVS_MAX_STYLE << 12)
 
-#define LLVS_HIT_TITLE      1
-#define LLVS_HIT_HEADER     2
-#define LLVS_HIT_LINENUMBER 3
-#define LLVS_HIT_DATA       4
+#define LLV_HIT_TITLE      1
+#define LLV_HIT_HEADER     2
+#define LLV_HIT_LINENUMBER 3
+#define LLV_HIT_DATA       4
 
 class LListView : public LWndView<LListView>
 {
+protected:
     INT _rows, _cols, _fixedRows, _fixedCols;
-    INT *_rowids;
+    //INT *_rowids;
     float _width; /* 0:autosize, 1:100%, <1:x%, n:fixed} */
     COLORREF _rowcolors[2];
     COLORREF _lineColor;
@@ -55,18 +60,53 @@ class LListView : public LWndView<LListView>
     } _selected;
     LSTR _title;
     LRect rcTitle, rcFixedRows, rcFixedCols, rcFixedRowCols, rcUnfixed; /* in client coordinate */
-public:
 
+    VOID GetCellRect(INT row, INT col, LRect& rc)
+    {
+        LWIN_ASSERT(row < _rows);
+        LWIN_ASSERT(col < _cols);
+        rc.left = _widths[col];
+        rc.right = _widths[col + 1] + 1;
+        rc.top = _heights[row];
+        rc.bottom = _heights[row + 1] + 1;
+    }
+    VOID GetRowRect(INT row, LRect& rc)
+    {
+        LWIN_ASSERT(row < _rows);
+        rc.left = _widths[0];
+        rc.right = _widths[_cols] + 1;
+        rc.top = _heights[row];
+        rc.bottom = _heights[row + 1] + 1;
+    }
+    VOID GetLineNumberRect(INT row, LRect& rc)
+    {
+        //if (!(LLVS_ROWNUMBER & _uCtrlStyle)) {
+        //    rc.Zero();
+        //    return;
+        //}
+        GetRowRect(row, rc);
+        rc.right = rc.left + 1;
+        rc.left = 0;
+    }
+    VOID GetCellTextRect(INT row, INT col, LRect& rc)
+    {
+        GetCellRect(row, col, rc);
+        rc.InflateRect(-2, -2);
+            //(LLVS_NOHLINE & _uCtrlStyle) ? 0 : -1, 
+            //(LLVS_NOVLINE & _uCtrlStyle) ? 0 : -1);
+    }
+
+public:
     LListView()
     {
         //MEMZERO_THIS();
         _width = 1.0;
         _rows = _cols = 1;
-        _selected.row = -1;
-        _selected.col = -1;
-        _rowids = _widths = _heights = NULL;
+        _widths = _heights = NULL;
         _colinfos = NULL;
         _fixedRows = _fixedCols = 0;
+        _selected.row = -1;
+        _selected.col = -1;
         _selected.bgColor = RGB(0, 0, 0);
         _selected.bdrColor = RGB(0, 0, 0);
         _selected.textColor = RGB(255, 255, 255);
@@ -77,7 +117,7 @@ public:
 
     ~LListView()
     {
-        if (_rowids) delete[] _rowids;
+        //if (_rowids) delete[] _rowids;
         if (_widths) delete[] _widths;
         if (_heights) delete[] _heights;
         if (_colinfos) delete[] _colinfos;
@@ -93,44 +133,77 @@ public:
         _rows = max(rows, 1) + _fixedRows;
         _cols = max(cols, 1);
         _width = width;
-        _rowids = new INT[_rows];
+        //_rowids = new INT[_rows];
         _widths = new INT[_cols + 1];
         _heights = new INT[_rows + 1];
         _colinfos = new LISTVIEW_COLINFO[_cols];
         _title = lpName ? lpName : _T("NO TITLE");
 
-                    // =======
-                    _colinfos[0].width = 30;
-                    _colinfos[0].flags = LLVS_NOBORDER;
-                    _colinfos[0].align = LISTVIEW_COLINFO::RIGHT;
-                    //_uCtrlStyle |= LLVS_ROWNUMBER;
-                    _uCtrlStyle |= LLVS_NOVLINE;
-                    _uCtrlStyle |= LLVS_NOHLINE;
-                    //_uCtrlStyle |= LLVS_HEADER;
-                    //_selected.bdrColor = RGB(255, 0, 0);
-                    //_selected.bgColor = RGB(255, 255, 255);
-                    _lineColor = RGB(0, 0, 0);
-                    _selected.bdrColor = _lineColor;
-                    _selected.bgColor = RGB(0, 0, 0);
-                    _selected.textColor = RGB(255, 0, 0);
-                    _rowcolors[0] = RGB(240, 240, 240);
-                    //_fixedRows = 0;
-                    _fixedRows += 1;
-                    _fixedCols = 2;
+                    //// =======
+                    //_colinfos[0].width = 30;
+                    //_colinfos[0].flags = LLVS_NOBORDER;
+                    //_colinfos[0].align = LISTVIEW_COLINFO::RIGHT;
+                    ////_uCtrlStyle |= LLVS_ROWNUMBER;
+                    //_uCtrlStyle |= LLVS_NOVLINE;
+                    //_uCtrlStyle |= LLVS_NOHLINE;
+                    ////_uCtrlStyle |= LLVS_HEADER;
+                    ////_selected.bdrColor = RGB(255, 0, 0);
+                    ////_selected.bgColor = RGB(255, 255, 255);
+                    //_lineColor = RGB(0, 0, 0);
+                    //_selected.bdrColor = _lineColor;
+                    //_selected.bgColor = RGB(0, 0, 0);
+                    //_selected.textColor = RGB(255, 0, 0);
+                    //_rowcolors[0] = RGB(240, 240, 240);
+                    ////_fixedRows = 0;
+                    //_fixedRows += 1;
+                    //_fixedCols = 2;
 
-                    for (int i = 0; i < _cols; i++) {
-                        _colinfos[i].name.Format(_T("header#%d"), i);
-                    }
-                    for (int i = 1; i < _cols; i++) 
-                        _colinfos[i].width = 0;
-                    _colinfos[1].width = 200;
+                    //for (int i = 0; i < _cols; i++) {
+                    //    _colinfos[i].name.Format(_T("header#%d"), i);
+                    //}
+                    //for (int i = 1; i < _cols; i++) 
+                    //    _colinfos[i].width = 0;
+                    //_colinfos[1].width = 100;
         return TRUE;
+    }
+
+    void SetSize(INT rows, INT cols, LISTVIEW_COLINFO *colInfos = NULL, BOOL redrawNow = TRUE)
+    {
+        if (_widths) delete[] _widths;
+        if (_heights) delete[] _heights;
+        if (_colinfos) delete[] _colinfos;
+
+        //_fixedRows = (LLVS_HEADER & style ? 1 : 0);
+        SetFixedRows(0, FALSE);
+        _rows = max(rows, 1) + _fixedRows;
+        _cols = max(cols, 1);
+
+        _widths = new INT[_cols + 1];
+        _heights = new INT[_rows + 1];
+        _colinfos = new LISTVIEW_COLINFO[_cols];
+
+        for (int i = 0; i < cols; i++)
+            _colinfos[i] = colInfos[i];
+        if (redrawNow) InvalidateRect(NULL, FALSE, TRUE);
+    }
+
+    void SetFixedRows(int rows, BOOL redrawNow = TRUE)
+    {
+        _fixedRows = (LLVS_HEADER & _uCtrlStyle ? 1 : 0);
+        _fixedRows += rows;
+        if (redrawNow) InvalidateRect(NULL, FALSE, TRUE);
+    }
+
+    void SetFixedCols(int cols, BOOL redrawNow = TRUE)
+    {
+        _fixedCols = cols;
+        if (redrawNow) InvalidateRect(NULL, FALSE, TRUE);
     }
 
     void GetLayoutRect(LRect& rc)
     {
         GetClientRect(rc);
-        rc.InflateRect(-10, -10);
+        //rc.InflateRect(-10, -10);
     }
 
     virtual int CalcCellWidth(int col, LDC& dc)
@@ -156,7 +229,7 @@ public:
     {
         if (!(LLVS_TITLE & _uCtrlStyle))
             return 0;
-        return 30;
+        return 50;
     }
     virtual BOOL Layout(LDC& dc)
     {
@@ -250,6 +323,7 @@ public:
 
     virtual VOID CalcLayerSize(Layer *layer, UINT drawFlags, int& cx, int& cy)
     {
+                layer->Lock();
                 LFont font(layer->dc);
                 font.CreateFont(_T("Times New Roman"), 15);
                 //layer->dc.SelectObject(font);
@@ -257,6 +331,8 @@ public:
         Layout(layer->dc);
         cx = _widths[_cols] + 1;
         cy = _heights[_rows] + 1;
+                layer->Unlock();
+
     }
 
     virtual VOID CalcViewRegion(Layer *layer, LRect& rc)
@@ -283,40 +359,6 @@ public:
         rcFixedRowCols.right = rcUnfixed.left;
     }
 
-    VOID GetCellRect(INT row, INT col, LRect& rc)
-    {
-        _ASSERT(row < _rows);
-        _ASSERT(col < _cols);
-        rc.left = _widths[col];
-        rc.right = _widths[col + 1] + 1;
-        rc.top = _heights[row];
-        rc.bottom = _heights[row + 1] + 1;
-    }
-    VOID GetRowRect(INT row, LRect& rc)
-    {
-        _ASSERT(row < _rows);
-        rc.left = _widths[0];
-        rc.right = _widths[_cols] + 1;
-        rc.top = _heights[row];
-        rc.bottom = _heights[row + 1] + 1;
-    }
-    VOID GetLineNumberRect(INT row, LRect& rc)
-    {
-        //if (!(LLVS_ROWNUMBER & _uCtrlStyle)) {
-        //    rc.Zero();
-        //    return;
-        //}
-        GetRowRect(row, rc);
-        rc.right = rc.left + 1;
-        rc.left = 0;
-    }
-    VOID GetCellTextRect(INT row, INT col, LRect& rc)
-    {
-        GetCellRect(row, col, rc);
-        rc.InflateRect(-2, -2);
-            //(LLVS_NOHLINE & _uCtrlStyle) ? 0 : -1, 
-            //(LLVS_NOVLINE & _uCtrlStyle) ? 0 : -1);
-    }
     VOID GetTitleRect(LRect& rc)
     {
         if (!(LLVS_TITLE & _uCtrlStyle)) {
@@ -376,10 +418,10 @@ public:
             //LFont ft0(dc);
             //ft0.CreateFont(_T("Times New Roman"), 40, FW_BOLD, RGB(0, 0, 255));
             //dc.DrawText(_T("_title"), rc);
-        ft.CreateFont(_T("Tahoma"), 11, FW_NORMAL, RGB(0, 0, 255));
-        dc.DrawText(_T("18/01/2015"), rc, DT_RIGHT | DT_BOTTOM | DT_SINGLELINE );
+        //ft.CreateFont(_T("Tahoma"), 11, FW_NORMAL, RGB(0, 0, 255));
+        //dc.DrawText(_T("18/01/2015"), rc, DT_RIGHT | DT_BOTTOM | DT_SINGLELINE );
     }
-    virtual VOID DrawCell(LDC &dc, int row, int col, LRect &rc, LRect &rcText)
+    virtual VOID DrawItemText(LDC &dc, int row, int col, LRect &rc, LRect &rcText)
     {
             if (col == 2)
             {
@@ -458,7 +500,9 @@ public:
             GetCellTextRect(row, col, rcText);
             if (!(_colinfos[col].flags & LLVS_NOBORDER))
                 dc.Rectangle(rc);
-            DrawCell(dc, row, col, rc, rcText);
+            DrawItemText(dc, 
+                row - (LLVS_HEADER & _uCtrlStyle ? 1 : 0), 
+                col, rc, rcText);
             //// dc.Rectangle(rc);
             //LSTR str;
             ////str = rand(); 通过GetCellDrawText来获取单元格输出内容，可以为字符串，可以为一个对象，以支持复杂单元格内容输出
@@ -492,18 +536,19 @@ public:
         //INT w;// = _nBdrWidth - _nLineWidth;
         //w = max(w, 0);
         //GetLayerRect(rc);
+        layer->Lock();
         dc.SetBkMode(TRANSPARENT);
-        if (REDRAW_CALCULATE & uFlags)
-        {
-            //w = _nBdrWidth - _nLineWidth;
-            //w = max(w, 0);
-            //GetLayerRect(rc);
-            //rc.InflateRect(-w, -w);
-            //_cell.Layout(rc, _nLineWidth, _nCellPadding, _nBdrWidth, _nLineWidth ? TRUE : FALSE);
-            ////_cell.rc = rcClient;
-            ////_cell.rc.InflateRect(-5, -5);
-            ////_cell.LayoutCells(_cell, _cell.rc, TRUE);
-        }
+        //if (REDRAW_CALCULATE & uFlags)
+        //{
+        //    //w = _nBdrWidth - _nLineWidth;
+        //    //w = max(w, 0);
+        //    //GetLayerRect(rc);
+        //    //rc.InflateRect(-w, -w);
+        //    //_cell.Layout(rc, _nLineWidth, _nCellPadding, _nBdrWidth, _nLineWidth ? TRUE : FALSE);
+        //    ////_cell.rc = rcClient;
+        //    ////_cell.rc.InflateRect(-5, -5);
+        //    ////_cell.LayoutCells(_cell, _cell.rc, TRUE);
+        //}
 
                     //LFont font(dc);
                     //font.CreateFont(_T("Tahoma"), 14);
@@ -533,17 +578,24 @@ public:
             GetTitleRect(rc);
             DrawTitle(dc, rc);
         }
-
+        layer->Unlock();
         //row = 0;
         //if (LLVS_HEADER & _uCtrlStyle) {
         //    DrawHeader(dc);
         //    row = 1;
         //}
         for (row = 0; row < _rows; row++) {
+            //if (row > 200)
+            //    continue;
+            layer->Lock();
             DrawRow(row, dc, FALSE);
+            layer->Unlock();
         }
-        if (-1 != _selected.row)
+        if (-1 != _selected.row) {
+            layer->Lock();
             DrawRow(_selected.row, dc, TRUE);
+            layer->Unlock();
+        }
         //w = _nBdrWidth;
         //if (w > 0)
         //{
@@ -570,7 +622,7 @@ public:
     }
 
     /* pt must be in client coordinate */
-    enum {HIT_TITLE, HIT_HEADER, HIT_CELL};
+    //enum {HIT_TITLE, HIT_HEADER, HIT_CELL, HIT_NONE};
     BOOL HitTest(LPoint& pt, INT& row, INT& col, UINT *hitFlags = NULL)
     {
         LPoint pt0 = pt;
@@ -584,7 +636,7 @@ public:
         //    _curLayer->ClientToLayer(pt0);
         //else pt0 -= _curLayer->viewPort.lt;
         _curLayer->ClientToLayer(pt0);
-        hitFlags0 = HIT_CELL;
+        hitFlags0 = LLV_HIT_DATA;
         if (rcFixedRows.PtInRect(pt)) {
             pt0.y = pt.y - _curLayer->viewPort.top;
         } else if (rcFixedCols.PtInRect(pt)) {
@@ -593,7 +645,7 @@ public:
             /* hit on rcFixedRowCols or rcTitle */
             pt0 = pt - _curLayer->viewPort.lt;
             if (rcTitle.PtInRect(pt))
-                hitFlags0 = HIT_TITLE;
+                hitFlags0 = LLV_HIT_TITLE;
             // else if (rcFixedRowCols)
         }
         INT i;
@@ -607,7 +659,7 @@ public:
             }
         }
         if ((LLVS_HEADER & _uCtrlStyle) && row == 0)
-            hitFlags0 = HIT_HEADER;
+            hitFlags0 = LLV_HIT_HEADER;
 
         col = -1;
         for (i = 0; i <= _cols; i++)
@@ -642,7 +694,7 @@ public:
             rc.left += (_widths[_fixedCols] + 1);
     }
 
-    VOID OnPaint(LDC& dc)
+    virtual VOID OnPaint(LDC& dc)
     {
         // LRect rcFixed;
         if (0 != _uRedrawFlags || _fixedCols == 0 && _fixedRows == 0)
@@ -744,9 +796,16 @@ public:
         //}
         
     }
+
+    virtual void OnHitTest(UINT hitFlags, int row, int col)
+    {
+    }
+
     LRESULT OnLButtonDown(DWORD dwFlags, LPoint& pt)
     {
        (VOID)__super::OnLButtonDown(dwFlags, pt);
+       if (this->drawThread != 0xFFFFFFFF)
+           return 0;
         //LPoint pt0 = pt;
         //LRect rcFix;
         //GetFixedRect(rcFix);
@@ -759,14 +818,16 @@ public:
 
         INT row = _selected.row;
         INT col = _selected.col;
+        UINT hitFlags = 0;
         // _nActiveRow = -1;
-        if (HitTest(pt, row, col))
+        if (HitTest(pt, row, col, &hitFlags) && hitFlags != LLV_HIT_TITLE)
         {
-            if (row != _selected.row || col != _selected.col) {
+            if (!(hitFlags & LLV_HIT_HEADER) && (row != _selected.row || col != _selected.col)) {
                 //_nActiveRow = t;
                 //SetRedrawFlags(REDRAW_PAINT);
                 //InvalidateRect(NULL, FALSE);
                 //_curLayer->dc
+                //_curLayer->Lock();
                 if (-1 != _selected.row)
                     DrawRow(_selected.row, _curLayer->dc, FALSE);
                 DrawRow(row, _curLayer->dc, TRUE);
@@ -781,9 +842,12 @@ public:
                 br.CreateStockObject(NULL_BRUSH);
                 //_curLayer->dc.FrameRect(rc, br);
                 _curLayer->dc.Rectangle(rc);
+                //_curLayer->Unlock();
             }
+            OnHitTest(hitFlags, row, col);
             return 0;
         }
+
         //_nActiveRow = -1;
         //_nMouseStatus |= LVIEW_LBUTTONDOWN;
         //return OnButtonDown(dwFlags, pt);
@@ -839,5 +903,117 @@ public:
 
         return 0;
     }
+
+    //virtual LRESULT OnLButtonDblClk (DWORD dwFlags, LPoint& pt) {return 0;}
+
 };
 
+class LDvsView : public LListView
+{
+    DVS *_ds;
+public:
+    void SetData(DVS *ds)
+    {
+        int cols = ds->Cols() + 1;
+        LISTVIEW_COLINFO *colInfos = new LISTVIEW_COLINFO[cols];
+        LSTR t;
+        for (int i = 1; i < cols; i++)
+        {
+            colInfos[i].name = (*ds)[i - 1].GetDispName();
+            colInfos[i].maxWidth = 200;
+            t.Format(_T("0%d"), (*ds)[i - 1].GetMaxInt(FALSE));
+            int lenTitle = colInfos[i].name.Len() * 12;
+            int lenMaxCell = t.Len() * 12;
+            colInfos[i].width = max(lenTitle, lenMaxCell);
+            colInfos[i].align = DT_RIGHT | DT_SINGLELINE | DT_VCENTER;
+        }
+        colInfos[0].width = 40;
+        colInfos[0].align = DT_RIGHT | DT_SINGLELINE | DT_VCENTER;
+        colInfos[0].flags = LLVS_NOBORDER;
+
+        colInfos[1].align = DT_CENTER | DT_SINGLELINE | DT_VCENTER;
+
+        SetSize(ds->Rows(), cols, colInfos);
+        //SetSize(200, cols, colInfos);
+        _ds = ds;
+        SetFixedRows(3, FALSE);
+        delete[] colInfos;
+    }
+
+    //virtual VOID DrawTitle(LDC& dc, LRect& rc)
+    //{
+    //    LSTR str;
+    //    str.Format(_T("offset.y = %d"), _curLayer->offset.y);
+    //    //str.Format(_T("NO TITLE. table info: rows %d, cols %d"), _rows, _cols);
+    //    //LFont ft(dc);
+    //    //ft.CreateFont(_T("Times New Roman"), rc.Height() - 3, FW_BOLD);
+    //    dc.DrawText(str, rc);
+    //    //    //LFont ft0(dc);
+    //    //    //ft0.CreateFont(_T("Times New Roman"), 40, FW_BOLD, RGB(0, 0, 255));
+    //    //    //dc.DrawText(_T("_title"), rc);
+    //    //ft.CreateFont(_T("Tahoma"), 11, FW_NORMAL, RGB(0, 0, 255));
+    //    //dc.DrawText(_T("18/01/2015"), rc, DT_RIGHT | DT_BOTTOM | DT_SINGLELINE );
+    //}
+
+    //virtual VOID OnPaint(LDC& dc)
+    //{
+    //    __super::OnPaint(dc);
+
+    //    LRect rc;
+    //    LSTR str;
+    //    GetTitleRect(rc);
+    //    int row, h = 0;
+    //    {
+    //        row = 1;
+    //        LRect rc0;
+    //        GetCellRect(row, 0, rc0);
+    //        h = rc0.Height();
+    //    }
+    //    str.Format(_T("offset.y = %d, row %d"), _curLayer->offset.y, _curLayer->offset.y / h);
+    //    dc.DrawText(str, rc);
+    //}
+    virtual VOID DrawItemText(LDC &dc, int row, int col, LRect &rc, LRect &rcText)
+    {
+        //if (row > 200)
+            //return;
+        LSTR text;
+
+        if (col == 0) {
+            text.Format(_T("%d"), row);
+            dc.DrawText(text, rcText, _colinfos[col].align);
+            return;
+        }
+        //(*_ds)[col].GetText(row, text);
+        _ds->GetText(row, col - 1, text);
+                    //if (col == 0) {
+                    //    LSTR ttt;
+                    //    ttt.Format(_T("%d:%s"), row, (LPCTSTR)text);
+                    //    dc.DrawText(ttt, rcText);
+                    //    return;
+                    //}
+        dc.DrawText(text, rcText, _colinfos[col].align);
+    }
+
+    virtual void OnHitTest(UINT hitFlags, int row, int col)
+    {
+        if (hitFlags & LLV_HIT_HEADER) {
+            if (col == 0)
+                return;
+            static int f = 0;
+            f++;
+            _ds->Sort(col - 1, f & 1);
+            SetRedrawFlags(REDRAW_PAINT);
+            InvalidateRect(NULL, FALSE, 0);
+            return;
+        }
+    }
+
+    //LRESULT OnLButtonDblClk (DWORD dwFlags, LPoint& pt)
+    //{
+    //    _ds->reverse();
+    //    SetRedrawFlags(REDRAW_PAINT);
+    //    InvalidateRect(NULL, FALSE, 0);
+    //    return 0;
+    //}
+
+};

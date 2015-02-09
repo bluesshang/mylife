@@ -25,12 +25,12 @@ public:
     //        if (data[i] == key)
     //            return data[i];
     //    }
-    //    _ASSERT(0);
+    //    LWIN_ASSERT(0);
     //    return data[0];
     //}
     T& operator [](int pos)
     {
-        _ASSERT(pos < size);
+        LWIN_ASSERT(pos < size);
         return data[pos];
     }
 
@@ -39,7 +39,7 @@ public:
     T& Add(T t)
     {
         
-        _ASSERT(count < size);
+        LWIN_ASSERT(count < size);
         T& _t = (*this)[count++] = t; /* do deep copy */
         return _t;
     }
@@ -49,12 +49,14 @@ public:
     }
 };
 
+typedef void (*DATA_FORMAT)(LSTR& str, void *data);
 class DVS;
 class _DV
 {
 protected:
     LSTR _name, _dispname, _format;
     INT _size, _refs;
+    DATA_FORMAT _textFormat;
 public:
     DVS *dvs;
     // virtual VOID GetText(INT pos, LSTR& str, LPCTSTR lpFmt = NULL) = 0;
@@ -65,12 +67,13 @@ public:
     virtual BOOL SetSize(INT size) = 0;
     virtual _DV* MA(int intval) = 0;
     INT operator[](INT pos) { return GetInt(pos); }
+    virtual int compare(int i, int j) = 0;
     // float operator[](INT pos) { return .0; }
     // void AddRef() { _refs += 1; }
 
-    INT Size(BOOL all = FALSE);
-    INT GetMaxInt(BOOL all = FALSE);
-    INT GetMinInt(BOOL all = FALSE);
+    INT Size(BOOL part = TRUE);
+    INT GetMaxInt(BOOL part = TRUE);
+    INT GetMinInt(BOOL part = TRUE);
 };
 
 class VDATA32
@@ -97,9 +100,22 @@ public:
         delete[] _data;
     }
     // DV(LPCTSTR name = NULL, LPCTSTR dispname = NULL, LPCTSTR format = NULL)
+    //DV(LPCTSTR name, LPCTSTR dispname = NULL, DATA_FORMAT textFormat = NULL)
+    //{
+    //    Init(0, name, dispname, NULL);
+    //    _textFormat = textFormat;
+    //}
+    DV(LPCTSTR name, LPCTSTR dispname = NULL, LPCTSTR format = NULL)
+    {
+        Init(0, name, dispname, format);
+    }
     DV(INT size, LPCTSTR name = NULL, LPCTSTR dispname = NULL, LPCTSTR format = NULL)
     {
-        //_ASSERT(size > 0);
+        Init(size, name, dispname, format);
+    }
+    void Init(INT size, LPCTSTR name = NULL, LPCTSTR dispname = NULL, LPCTSTR format = NULL)
+    {
+        //LWIN_ASSERT(size > 0);
         _data = NULL;// new T[size];
         // _size = size;
         _name = name;
@@ -128,15 +144,20 @@ public:
         //}
         return TRUE;
     }
+    void SetTextFormat(DATA_FORMAT textFormat)
+    {
+        _textFormat = textFormat;
+    }
     T& operator [](int pos)
     {
-        _ASSERT(pos < _size);
+        LWIN_ASSERT(pos < _size);
         return _data[pos];
     }
     INT GetText(INT pos, LSTR& str, LPCTSTR fmt = NULL)
     {
-        //str = _data[pos];
-        str.Format(fmt ? fmt : _format, _data[pos]);
+        if (_textFormat)
+            _textFormat(str, &_data[pos]);
+        else str.Format(fmt ? fmt : _format, _data[pos]);
         return str.Len();
     }
     INT GetInt(INT pos)
@@ -164,6 +185,10 @@ public:
             t -= (*dv)[i - (intval - 1)];
         }
         return dv;
+    }
+    int compare(int i, int j)
+    {
+        return _data[i] - _data[j];
     }
 };
 
@@ -199,7 +224,7 @@ public:
             if (_tcscmp(_dvs[i]->GetName(), colName) == 0)
                 return *_dvs[i];
         }
-        _ASSERT(0);
+        LWIN_ASSERT(0);
         return *_dvs[0]; 
     }
     // DV<LSTR>& operator[](int row) { return *_dvs[row]; }
@@ -209,8 +234,8 @@ public:
     VOID Add(_DV* dv)
     {
         dv->dvs = this;
-        _ASSERT(0 == dv->Size(TRUE) || dv->Size(TRUE) >= _rows);
-        if (0 == dv->Size(TRUE))
+        LWIN_ASSERT(0 == dv->Size(FALSE) || dv->Size(FALSE) >= _rows);
+        if (0 == dv->Size(FALSE))
             dv->SetSize(_rows);
         _dvs.Add(dv);
     }
@@ -218,21 +243,21 @@ public:
     /* functions used for displaying */
     int GetText(int row, int col, LSTR& str, LPCTSTR fmt = NULL)
     {
-        _ASSERT(NULL != _dvs[col]);
-        _ASSERT(row < _rows);
+        LWIN_ASSERT(NULL != _dvs[col]);
+        LWIN_ASSERT(row < _rows);
         return _dvs[col]->GetText(_rowids[row], str, fmt);
     }
     int GetText(int cellid, LSTR& str, LPCTSTR fmt = NULL)
     {
-        //_ASSERT(NULL != _dvs[col]);
-        //_ASSERT(row < _rows);
+        //LWIN_ASSERT(NULL != _dvs[col]);
+        //LWIN_ASSERT(row < _rows);
         int row = cellid / Cols();
         int col = cellid % Cols();
         return _dvs[col]->GetText(_rowids[row], str, fmt);
     }
     int GetName(int col, LSTR& str)
     {
-        _ASSERT(NULL != _dvs[col]);
+        LWIN_ASSERT(NULL != _dvs[col]);
         str = _dvs[col]->GetDispName();
         return str.Len();
     }
@@ -240,20 +265,49 @@ public:
     {
         return row * Cols() + col;
     }
+    void Sort(int col, int incr)
+    {
+        //static int x = 0;
+        //x++;
+
+        //for (int i = 0; i < _rows; i++)
+        //{
+        //    _rowids[i] = x & 1 ? _rows - 1 - i : i;
+        //}
+        //qsort(_rowids, _rows, sizeof(_rowids[0]), )
+        _DV *dv = _dvs[col];
+        for (int i = 0; i < _rows; i++) {
+            for (int j = 0; j < _rows; j++) {
+                if (incr) {
+                    if (dv->compare(_rowids[i], _rowids[j]) < 0) {
+                        int t = _rowids[i];
+                        _rowids[i] = _rowids[j];
+                        _rowids[j] = t;
+                    }
+                } else {
+                    if (dv->compare(_rowids[i], _rowids[j]) > 0) {
+                        int t = _rowids[i];
+                        _rowids[i] = _rowids[j];
+                        _rowids[j] = t;
+                    }
+                }
+            }
+        }
+    }
 };
 
-INT _DV::Size(BOOL all/* = FALSE*/)
+INT _DV::Size(BOOL part/* = TRUE*/)
 { 
-    if (all == FALSE)
+    if (part == TRUE)
         return dvs->xn - dvs->x0;
     return _size; 
 }
 
-INT _DV::GetMaxInt(BOOL all/* = FALSE*/)
+INT _DV::GetMaxInt(BOOL part/* = TRUE*/)
 {
     INT mx = 0, t;
-    int x0 = all ? 0 : dvs->x0;
-    int xn = all ? _size : dvs->xn;
+    int x0 = part ? dvs->x0 : 0;
+    int xn = part ? dvs->xn : _size;
     // for (int i = 0; i < _size; i++) {
     for (int i = x0; i < xn; i++) {
         t = GetInt(i);
@@ -261,12 +315,12 @@ INT _DV::GetMaxInt(BOOL all/* = FALSE*/)
     }
     return mx;
 }
-INT _DV::GetMinInt(BOOL all/* = FALSE*/)
+INT _DV::GetMinInt(BOOL part/* = TRUE*/)
 {
     INT mi = 0x7fffffff, t;
     //for (int i = 0; i < _size; i++) {
-    int x0 = all ? 0 : dvs->x0;
-    int xn = all ? _size : dvs->xn;
+    int x0 = part ? dvs->x0 : 0;
+    int xn = part ? dvs->xn : _size;
     // for (int i = 0; i < _size; i++) {
     for (int i = x0; i < xn; i++) {
         t = GetInt(i);

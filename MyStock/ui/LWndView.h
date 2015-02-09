@@ -51,6 +51,7 @@ typedef struct LVIEW_MSGSYNC_TRACKING_t
 #define LVS_HALIGN_RIGHT        0x10
 #define LVS_NO_VERT_SCROLLBAR   0x20
 #define LVS_NO_HORZ_SCROLLBAR   0x40
+#define LVS_ENABLE_DRAW_THREAD  0x80
 #define LVS_NO_SCROLLBAR        (LVS_NO_VERT_SCROLLBAR | LVS_NO_HORZ_SCROLLBAR)
 #define LVS_MAX_STYLE           0x100
 
@@ -146,7 +147,7 @@ public:
     {
         //memset(this, 0, sizeof(*this));
         dc = ::CreateCompatibleDC(NULL);
-        _ASSERT((HDC)dc != NULL);
+        LWIN_ASSERT((HDC)dc != NULL);
         cx = 0;
         cy = 0;
         bm = 0;
@@ -179,6 +180,9 @@ public:
             return gv[0];
         return NULL;
     }
+
+    void Lock() { dc.Lock(); }
+    void Unlock() { dc.Unlock(); }
     //GV* LookupGV(LPCTSTR gvName)
     //{
     //    for (int i = 0; i < gv.Count(); i++) {
@@ -203,7 +207,7 @@ public:
     BOOL Create(LWnd *wnd, INT width, INT height)
     {
         //HDC hdc = GetDC(hWnd);
-        //_ASSERT(NULL != hdc);
+        //LWIN_ASSERT(NULL != hdc);
         HDC hdc = wnd->GetDC();
         HBITMAP hbmNew = CreateCompatibleBitmap(hdc, width, height);
         //ReleaseDC(hWnd, hdc);
@@ -217,6 +221,8 @@ public:
         }
         wnd->ReleaseDC(hdc);
         this->wnd = wnd;
+        dc.EnableLock((wnd->GetCtrlStyle() & LVS_ENABLE_DRAW_THREAD) ? TRUE : FALSE);
+
         return TRUE;
     }
     VOID EraseBackground()
@@ -372,7 +378,7 @@ public:
         if (ret != TRUE) {
             DWORD err = GetLastError();
         }
-        _ASSERT(ret == TRUE);
+        LWIN_ASSERT(ret == TRUE);
 
         /* show scroll bar if any */
         /* XXX: no wndCtrlStyle here */
@@ -481,6 +487,7 @@ template <class T>
 class LWndView : public LWindowImpl<T>/*, public LWnd*/
 {
     // Layer _layers[10];
+    //BOOL _drawInThread;
 public:
     // LDC _dcClient;
     UINT _nMouseStatus;
@@ -525,6 +532,7 @@ public:
         _ptDragDlt.x = 0;
         _ptDragDlt.y = 0;
         _pThis = static_cast<T *>(this); /* for 'overiding' */
+        //_drawInThread = FALSE;
         //_rngTracking = NULL;
         //_offsetX = 0;
         //_offsetY = 0;
@@ -533,7 +541,7 @@ public:
         //_ptCanvasOffset.x = 0;
         //_ptCanvasOffset.y = 0;
         //_curLayer->dc = ::CreateCompatibleDC(NULL);
-        //_ASSERT((HDC)_dcCanvas != NULL);
+        //LWIN_ASSERT((HDC)_dcCanvas != NULL);
         //_sbVert.Init(ScrollBar::VERTICAL);
         //_sbHorz.Init(ScrollBar::HORIZONTAL);
         //_sbHover = NULL;
@@ -560,6 +568,11 @@ public:
     //    if (_wndDragSync != NULL)
     //        _wndDragSync->Add(wnd);
     //}
+
+    BOOL LayoutLayer(Layer *layer, UINT& uDrawFlags)
+    {
+        return TRUE;
+    }
 
     BOOL DrawLayer(Layer *layer, UINT& uDrawFlags)
     {
@@ -783,21 +796,93 @@ public:
     }
 
     UINT _nPaints = 0, _nRedraws = 0;
+    static DWORD __stdcall LayerDrawThread(LWndView *view)
+    {
+        //LWndView *view = (LWndView *)pThis;
+
+        UINT uRedrawFlags = view->_uRedrawFlags;
+        T* pThis = view->_pThis;
+        // _dcCanvas.f
+        //FillRect(dc, _rcClient,(HBRUSH)(COLOR_MENU+1));
+        //int cx, cy;
+        LRect rcScroll;
+        view->_nRedraws++;
+        for (int i = 0; i < view->_layers.Count(); i++) {
+            Layer *layer = view->_layers[i];
+            //if (uRedrawFlags & REDRAW_CALCULATE) {
+            //    pThis->CalcLayerSize(layer, uRedrawFlags, cx, cy);
+            //    if (layer->Create(view, cx, cy) == FALSE)
+            //        continue;
+
+            //    /* all layers share the same view port */
+            //    pThis->CalcViewRegion(layer, layer->viewPort);
+            //    /* the view port region should small than the canvas */
+            //    if (layer->viewPort.Width() > cx)
+            //        layer->viewPort.right = layer->viewPort.left + cx;
+            //    if (layer->viewPort.Height() > cy)
+            //        layer->viewPort.bottom = layer->viewPort.top + cy;
+
+            //    SIZE dltSize = {0};
+            //    pThis->CalcScrollRegion(layer, rcScroll, dltSize);
+            //    layer->CalcScrollBarInfo(rcScroll, dltSize);
+            //    // TODO: layer->viewPort should intersect with the whole visible client area (not include rulers etc.)
+            //    // layer->viewPort.Intersection(_rcClient); /* draw region can't larger then the client region */
+            //}
+            ///* else: just redraw the layer */
+            //layer->Lock();
+            layer->EraseBackground();
+            //layer->Unlock();
+            pThis->DrawLayer(layer, uRedrawFlags);
+
+            //if (uRedrawFlags & REDRAW_CALCULATE) {
+            //    // layer->_rngTrackings.Reset();
+            //    layer->ResetTrackingRngs();
+            //    pThis->UpdateTrackingRngs(layer);
+            //}
+            // ResetTrackingRngs();
+            //layer->_rngTrackings.Reset();
+            //_pThis->UpdateTrackingRngs();
+        }
+        //if (uRedrawFlags & REDRAW_CALCULATE) {
+        //    LRect rc = view->_rcClient;
+        //    view->_cachedLayer->Create(view, rc.Width(), rc.Height());
+        //    view->_trackingLayer->Create(view, rc.Width(), rc.Height());
+        //    view->SetActiveLayer(view->_curLayer); /* reset the current active layer */
+        //}
+
+        view->_uRedrawFlags = 0;
+        view->_nPaints = 0;
+        view->drawThread = 0xFFFFFFFF;
+        view->InvalidateRect(NULL, TRUE, TRUE);
+        return 0;
+    }
+
+    DWORD drawThread = 0xFFFFFFFF;
     VOID OnPaint(LDC& dc)
     {
-        {
-            const char *cname = typeid(this).name();
-            if (strstr(cname, "LWndTodo"))
-            {
-                int a = 0;
-            }
+        if (drawThread != 0xFFFFFFFF) {
+            dc.SetBkColor(0);
+            //dc.SetTextColor(RGB(255, 0, 0));
+            LFont ft(dc);
+            dc.Rectangle(_rcClient);
+            ft.CreateFont(_T("Tahoma"), 20, FW_BOLD, RGB(255, 0, 0));
+            dc.DrawText(_T("RENDERING ..."), _rcClient);
+            return;
         }
+        //{
+        //    const char *cname = typeid(this).name();
+        //    if (strstr(cname, "LWndTodo"))
+        //    {
+        //        int a = 0;
+        //    }
+        //}
 
         _nPaints++;
         LRect rc;//(0, 0, _curLayer->cx, _curLayer->cy);
         if (0 != _uRedrawFlags)
         // if (REDRAW_CALCULATE & _uRedrawFlags)
         {
+#if 1
             // _dcCanvas.f
             //FillRect(dc, _rcClient,(HBRUSH)(COLOR_MENU+1));
             int cx, cy;
@@ -825,8 +910,9 @@ public:
                     // layer->viewPort.Intersection(_rcClient); /* draw region can't larger then the client region */
                 }
                 /* else: just redraw the layer */
-                layer->EraseBackground();
-                _pThis->DrawLayer(layer, _uRedrawFlags);
+                _pThis->LayoutLayer(layer, _uRedrawFlags);
+                //layer->EraseBackground();
+                //_pThis->DrawLayer(layer, _uRedrawFlags);
 
                 if (_uRedrawFlags & REDRAW_CALCULATE) {
                     // layer->_rngTrackings.Reset();
@@ -843,97 +929,21 @@ public:
                 SetActiveLayer(_curLayer); /* reset the current active layer */
             }
 
-            _uRedrawFlags = 0;
-            _nPaints = 0;
+            //_uRedrawFlags = 0;
+            //_nPaints = 0;
+#endif
+/*            if ((_uCtrlStyle & LVS_ENABLE_DRAW_THREAD) && drawThread == 0xFFFFFFFF) {
+                CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)LayerDrawThread, this, 0, &drawThread);
+                return;
+            }
+            else */LayerDrawThread(this);
         }
         /* else: just bitblt all layers */
 
-        //if (NULL == _curLayer->bm)
-        //{
-        //    dc.SetBkMode(TRANSPARENT);
-        //    dc.DrawText(_T("ERROR: The size of layer is too large to draw."), _rcClient);
-        //    return;
-        //}
-        //if (1)
-        //        {
-        //        //LRect rc(0, 0, min(_rcClient.Width(), _curLayer->cx), min(_rcClient.Height(), _curLayer->cy));
-        //        //INT x = 0, y = 0;
-        //        //if (_rcClient.Width() > _curLayer->cx)
-        //        //    x = _rcClient.Width() - _curLayer->cx;
-        //        //if (_rcClient.Height() > _curLayer->cy)
-        //        //    y = _rcClient.Height() - _curLayer->cy;
-        //        //rc.Offset(x/2, y/2);
-        //        //IntersectClipRect(dc, _rcVisibleCanvas.left, _rcVisibleCanvas.top, _rcVisibleCanvas.right, _rcVisibleCanvas.bottom);
-        //            }
-        //LRect rcDraw = _rcView;
-        ////rcDraw.Offset(_offsetX, _offsetY);
-        //rcDraw.InflateRect(-_offsetX, -_offsetY);
-        ////LRect rcCanvas;
-        ////GetLayerRect(rcCanvas);
-        ////rcDraw.Intersection(rcCanvas);
-        //if (rcDraw.Width() > _curLayer->cx)
-        //    rcDraw.right = rcDraw.left + _curLayer->cx;
-        //if (rcDraw.Height() > _curLayer->cy)
-        //    rcDraw.bottom = rcDraw.top + _curLayer->cy;
-        //if (1)
-        //{
-        //    LBrush br(dc);
-        //    LPen pen(dc);
-        //    pen.CreatePen(PS_SOLID, 1, RGB(0, 0, 255));
-        //    br.CreateStockObject(NULL_BRUSH);
-        //    dc.Rectangle(_rcView);
-        //    pen.CreatePen(PS_SOLID, 1, RGB(0, 255, 0));
-        //    dc.Rectangle(_rcDraw);
+        //if (drawThread != 0xFFFFFFFF) {
+        //    dc.DrawText(_T("rendering ..."), _rcClient);
         //    //return;
         //}
-
-        //DrawScrollbar(dc);
-        //dc.IntersectClipRect(_rcDraw);
-            //{
-            //    LRect rc2;
-            //    GetClientRect(rc2);
-            //    HRGN rgn = rc2.CreateRoundRectRgn(3, 3);
-            //    SelectClipRgn(dc, rgn);
-            //}
-
-        //if (0)
-        //{
-        //    HBITMAP hbmClient = CreateCompatibleBitmap(dc, rc.Width(), rc.Height());
-        //    LDC dcClient = ::CreateCompatibleDC(dc);
-        //    dcClient.SelectObject(hbmClient);
-        //    dcClient.FillRect(rc,(HBRUSH)(COLOR_BACKGROUND+1));
-        //    dc.BitBlt(rc, dcClient, 0, 0);
-        //    DeleteObject(hbmClient);
-        //}
-        //dc.FillRect(rc,(HBRUSH)(COLOR_WINDOW+1));
-        // rc.Offset(100, 0);
-        //dc.BitBlt(rc, _curLayer->dc, _curLayer->offset.x, _curLayer->offset.y);
-        //dc.BitBlt(_curLayer->offset.x, _curLayer->offset.y, rc.Width(), rc.Height(), _curLayer->dc, 0, 0);
-        // dc.BitBlt(_curLayer->offset.x, _curLayer->offset.y, _curLayer->cx, _curLayer->cy, _curLayer->dc, 0, 0);
-        //{
-            //int x =_curLayer->offset.x + _ptDragDlt.x;
-            //int y =_curLayer->offset.y + _ptDragDlt.y;
-            //x = min(x, 0);
-            //y = min(y, 0);
-            //x = max(x, rc.Width() - _curLayer->cx);
-            //y = max(y, rc.Height() - _curLayer->cy);
-        //LPoint dragDraw, *canvasDraw = &_curLayer->offset; /* adjust the offset of layer drawing every time */
-        //if (_ptDragDlt.x || _ptDragDlt.y)
-        //{   /* in drag & drop mode, dont change the _curLayer->offset */
-        //    dragDraw = _curLayer->offset - _ptDragDlt;
-        //    canvasDraw = &dragDraw;
-        //}
-        //// _pThis->AdjustLayerDrawOffset(_curLayer, *canvasDraw);
-        //_curLayer->AdjustLayerDrawOffset(*canvasDraw);
-
-        //dc.BitBlt(_rcDraw, _curLayer->dc, *canvasDraw);
-        //__super::OnEraseBkgnd(_trackingLayer->dc);
-        //{
-        //    LBrush br(_trackingLayer->dc);
-        //    br.CreateSolidBrush(INVALID_COLOR != _clrBkgrnd ? _clrBkgrnd : GetSysColor(COLOR_MENU));
-        //    _trackingLayer->dc.FillRect(_rcClient, br);
-        //}
-
         /* always draw the tracking layer */
         _trackingLayer->EraseBackground();
         _pThis->DrawTrackingLayer(_trackingLayer->dc);
@@ -1005,14 +1015,16 @@ public:
             Layer *layer = _layers[i];
             if (layer == _curLayer)
                 continue;
+            layer->Lock();
             layer->BitBlt(_cachedLayer->dc, /*layer != _curLayer ? ptZero : */_ptDragDlt);
+            layer->Unlock();
         }
+        _curLayer->Lock();
         _curLayer->BitBlt(_cachedLayer->dc, _ptDragDlt); /* draw the selected layer at the most top */
         /* draw tracking layer */
         _cachedLayer->dc.TransparentBlt(_rcClient, _trackingLayer->dc, 0, 0, _trackingLayer->clrBkgrnd);
-        //for (int i = 0; i < _layers.Count(); i++)
-        //    _layers[i]->DrawScrollBar(_cachedLayer->dc, _layers[i] != _curLayer ? ptZero : _ptDragDlt);
         _curLayer->DrawScrollBar(_cachedLayer->dc, _ptDragDlt);
+        _curLayer->Unlock();
         // _cachedLayer->dc.BitBlt(_rcClient, _trackingLayer->dc, 0, 0);
         // _cachedLayer->dc.AlphaBlend(_rcClient, _trackingLayer->dc, LPoint(0,0), 90);
         // dc.BitBlt(_rcClient, _trackingLayer->dc, 0, 0);
@@ -1056,11 +1068,15 @@ public:
         //}
         //if (!(_nMouseStatus & LVIEW_LBUTTONDOWN))
         //    _ptDragDlt.x = 0;
+        if (drawThread != 0xFFFFFFFF) {
+            dc.DrawText(_T("rendering ..."), _rcClient);
+            //return;
+        }
     }
 
     LRESULT OnMouseSync(LWIN_MOUSESYNC_INFO *msi)
     {
-        _ASSERT(msi->src != this);
+        LWIN_ASSERT(msi->src != this);
         
         switch (msi->msgId) {
         case MOUSESYNC_MSG_LVIEW_DRAGDROP:
@@ -1590,6 +1606,28 @@ public:
         }
     }
 
+    BOOL LayoutLayer(Layer *layer, UINT& uDrawFlags)
+    {
+        _rcTracks.Reset();
+        LRect rc, rc0;
+        GetLayerRect(rc);
+        rc0 = rc;
+        rc.right = rc.left + 100;
+        rc.bottom = rc.top + 100;
+        rc.right = min(rc.right, rc0.right);
+        rc.bottom = min(rc.bottom, rc0.bottom);
+        _rcTracks.Add(rc);
+
+        GetLayerRect(rc);
+        rc.left = rc.right - 100;
+        rc.top = rc.bottom - 100;
+        rc.left = max(rc.left, rc0.left);
+        rc.top = max(rc.top, rc0.top);
+        _rcTracks.Add(rc);
+
+        return TRUE;
+    }
+
     BOOL DrawLayer(Layer *layer, UINT& uDrawFlags)
     {
         LDC& dc = layer->dc;
@@ -1599,25 +1637,25 @@ public:
         //SetCanvasSize(10, 1000);
 
         // GetLayerRect(rc);
-        if (REDRAW_CALCULATE & uDrawFlags)
-        {
-            _rcTracks.Reset();
-            LRect rc, rc0;
-            GetLayerRect(rc);
-            rc0 = rc;
-            rc.right = rc.left + 100;
-            rc.bottom = rc.top + 100;
-            rc.right = min(rc.right, rc0.right);
-            rc.bottom = min(rc.bottom, rc0.bottom);
-            _rcTracks.Add(rc);
+        //if (REDRAW_CALCULATE & uDrawFlags)
+        //{
+        //    _rcTracks.Reset();
+        //    LRect rc, rc0;
+        //    GetLayerRect(rc);
+        //    rc0 = rc;
+        //    rc.right = rc.left + 100;
+        //    rc.bottom = rc.top + 100;
+        //    rc.right = min(rc.right, rc0.right);
+        //    rc.bottom = min(rc.bottom, rc0.bottom);
+        //    _rcTracks.Add(rc);
 
-            GetLayerRect(rc);
-            rc.left = rc.right - 100;
-            rc.top = rc.bottom - 100;
-            rc.left = max(rc.left, rc0.left);
-            rc.top = max(rc.top, rc0.top);
-            _rcTracks.Add(rc);
-        }
+        //    GetLayerRect(rc);
+        //    rc.left = rc.right - 100;
+        //    rc.top = rc.bottom - 100;
+        //    rc.left = max(rc.left, rc0.left);
+        //    rc.top = max(rc.top, rc0.top);
+        //    _rcTracks.Add(rc);
+        //}
         for (int i = 0; i < _rcTracks.Count(); i++)
         {
             LPen pen0(dc);

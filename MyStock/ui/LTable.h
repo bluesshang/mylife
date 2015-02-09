@@ -76,22 +76,22 @@ public:
 
         LCell& cell(UINT row, UINT col) /* reference the subcell */
         {
-            //_ASSERT(SUBCELL == type);
-            _ASSERT(row < rows);
-            _ASSERT(col < cols);
+            //LWIN_ASSERT(SUBCELL == type);
+            LWIN_ASSERT(row < rows);
+            LWIN_ASSERT(col < cols);
             return cells[row * cols + col];
         }
 
     } subcell; /* type is SUBCELL */
     //}
     T& operator = (T data) {
-        _ASSERT(DATA == type);
+        LWIN_ASSERT(DATA == type);
         _data = data;
         return _data;
     }
     T& operator = (LPCTSTR lpText) /* used for string ONLY */
     {
-        _ASSERT(DATA == type);
+        LWIN_ASSERT(DATA == type);
         _data = lpText;
         return _data;
     }
@@ -150,11 +150,11 @@ public:
         int row, col;
         va_list vp;
 
-        _ASSERT(CELLPOS_MAX != pos);
+        LWIN_ASSERT(CELLPOS_MAX != pos);
         va_start(vp, pos);
         do {
             //if (LWndCell::WNDS == c0->type) { break; }
-            //_ASSERT(LWndCell::CELLS == c0->type);
+            //LWIN_ASSERT(LWndCell::CELLS == c0->type);
             row = HIWORD(pos);
             col = LOWORD(pos);
             c0 = &c0->cell(row, col);
@@ -416,11 +416,11 @@ public:
     //    int row, col;
     //    va_list vp;
 
-    //    _ASSERT(CELLPOS_MAX != pos);
+    //    LWIN_ASSERT(CELLPOS_MAX != pos);
     //    va_start(vp, pos);
     //    do {
     //        //if (LWndCell::WNDS == c0->type) { break; }
-    //        //_ASSERT(LWndCell::CELLS == c0->type);
+    //        //LWIN_ASSERT(LWndCell::CELLS == c0->type);
     //        row = HIWORD(pos);
     //        col = LOWORD(pos);
     //        c0 = &c0->cell(row, col);

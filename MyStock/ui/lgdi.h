@@ -8,6 +8,8 @@
 class LGdiObject
 {
     HGDIOBJ _hOldGdi;
+    DWORD threadid;
+
 protected:
     HDC _hdc;
 public:
@@ -17,6 +19,7 @@ public:
     LGdiObject(HDC hdc = NULL) : m_hGdi(NULL), _hOldGdi(NULL)
     {
         _hdc = hdc;
+        threadid = 0;
     }
 
     operator HGDIOBJ() {return m_hGdi;}
@@ -26,6 +29,8 @@ public:
 
     void Attach()
     {
+        LWIN_ASSERT(threadid == 0);
+        threadid = GetCurrentThreadId();
         if (NULL != _hdc && NULL != m_hGdi) {
             _hOldGdi = ::SelectObject(_hdc, m_hGdi);
         }
@@ -33,6 +38,7 @@ public:
 
     void Detach()
     {
+        LWIN_ASSERT(threadid == GetCurrentThreadId());
         if (NULL != _hdc && NULL != _hOldGdi) {
             HGDIOBJ ret = ::SelectObject(_hdc, _hOldGdi);
             LWIN_ASSERT(ret != NULL);
@@ -122,11 +128,40 @@ public:
 class LDC
 {
     HDC _hdc;
+    CRITICAL_SECTION _cs;
+    BOOL _withLock;
+
+    void init()
+    {
+        InitializeCriticalSection(&_cs);
+    }
 public:
-    LDC():_hdc(NULL) {}
-    LDC(HDC hdc):_hdc(hdc) {_ASSERT(NULL != _hdc);}
+    LDC(BOOL withLock = FALSE):_hdc(NULL),_withLock(withLock) {
+        init();
+    }
+    LDC(HDC hdc, BOOL withLock = FALSE):_hdc(hdc),_withLock(withLock) {
+        LWIN_ASSERT(NULL != _hdc);
+        init();
+    }
+    ~LDC()
+    {
+        DeleteCriticalSection(&_cs);
+    }
+
     operator HDC() {return _hdc;}
     void operator = (HDC hdc) { _hdc = hdc; }
+    void EnableLock(BOOL enable = TRUE) { _withLock = enable; }
+    void Lock()
+    {
+        if (_withLock)
+            EnterCriticalSection(&_cs);
+    }
+
+    void Unlock()
+    {
+        if (_withLock)
+            LeaveCriticalSection(&_cs);
+    }
 
     COLORREF SetTextColor(COLORREF clrText) {
         return ::SetTextColor(_hdc, clrText);
@@ -518,9 +553,9 @@ class GV
 public:
     /* draw on ai.rc */
     virtual void Draw(LDC& dc, AxisInfo& ai) = 0;
-    virtual INT Size(BOOL all = FALSE) = 0;
-    virtual INT GetMaxInt(BOOL all = FALSE) = 0;
-    virtual INT GetMinInt(BOOL all = FALSE) = 0;
+    virtual INT Size(BOOL part = TRUE) = 0;
+    virtual INT GetMaxInt(BOOL part = TRUE) = 0;
+    virtual INT GetMinInt(BOOL part = TRUE) = 0;
     virtual _DV* GetDV(LPCTSTR dvName) = 0;
 };
 

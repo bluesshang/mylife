@@ -45,7 +45,7 @@ public:
         if (NULL == wndTabs && wnds.Count() > 0)
         {   /* create a tab automatically */
             CreateTabWnd(wnd->GetParent());
-            _ASSERT(NULL != wndTabs);
+            LWIN_ASSERT(NULL != wndTabs);
             wndTabs->AddTab(wnds[0]);
         }
 
@@ -91,8 +91,8 @@ public:
 
     LWndCell& cell(UINT row, UINT col)
     {
-        _ASSERT(row < _rows);
-        _ASSERT(col < _cols);
+        LWIN_ASSERT(row < _rows);
+        LWIN_ASSERT(col < _cols);
         return(*_cells)[row * _cols + col];
     }
     LWndCell& operator[](int pos) {return(*_cells)[pos];}
@@ -195,11 +195,11 @@ LWndCell& LWndCell::CellAt(DWORD pos, ...)
     int row, col;
     va_list vp;
 
-    _ASSERT(CELLPOS_END != pos);
+    LWIN_ASSERT(CELLPOS_END != pos);
     va_start(vp, pos);
     do {
         //if (LWndCell::WNDS == c0->type) { break; }
-        _ASSERT(LWndCell::CELLS == c0->type);
+        LWIN_ASSERT(LWndCell::CELLS == c0->type);
         row = HIWORD(pos);
         col = LOWORD(pos);
         c0 = &c0->cells->cell(row, col);
@@ -233,7 +233,7 @@ public:
         if (NULL == wndTabs && wnds.Count() > 0)
         {   /* create a tab automatically */
             CreateTabWnd(wnd->GetParent());
-            _ASSERT(NULL != wndTabs);
+            LWIN_ASSERT(NULL != wndTabs);
             wndTabs->AddTab(wnds[0]);
         }
 
@@ -291,6 +291,24 @@ public:
     {
         clrSelected = _clrFrameBdr;
     }
+
+    //VOID ClipChildRegions(LDC& dc)
+    //{
+    //    LRect rc;
+    //    for (int i = 0; i < childs.Count(); i++) {
+    //        if (!childs[i]->IsWindowVisible())
+    //            continue;
+    //        GetChildRect(childs[i], rc);
+    //        //rc.left += 20;
+    //        //{
+    //        //    dc.Rectangle(rc);
+    //        //    LSTR txt;
+    //        //    childs[i]->GetWindowText(txt);
+    //        //    dc.DrawText(txt, rc);
+    //        //}
+    //        dc.ExcludeClipRect(rc);
+    //    }
+    //}
 
     LWndFrame() : LWindowImpl<T>(_T("LWndFrame"))
     {
@@ -609,7 +627,7 @@ public:
     {
         //HPEN pen = CreatePen(PS_SOLID, uFrameBdrWidth, RGB(255, 0, 0));
         //HGDIOBJ hOld = SelectObject(dc, pen);
-        //return;
+        return;
         LPen pen(dc);
         LBrush br(dc);
 

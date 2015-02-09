@@ -54,6 +54,7 @@ class StockHome :
     FavoritedStock *wndFav;
     LDVTable tblRltvStocks;
     LListView lvTest, lvTest2;
+    LDvsView lvTest3;
     LAxisView avKLine, avVol, avMcad;
 
     LSyncMsgObj msgSync;
@@ -231,6 +232,9 @@ public:
         dlg1.Create(*this);
         cell0.AddWnd(&dlg1, _T("Options[Custom background color]"));
 
+        lvTest3.Create(this, 500, 5, rc, _T("My favirote shares"), LLVS_HEADER | LLVS_TITLE | LVS_ENABLE_DRAW_THREAD);
+        cell0.AddWnd(&lvTest3);
+
         LFrameCell &cell1 = cell.cell(0, 0x10000, CELLPOS_END);
         // avVol._wndDragSync = &wndSync;
         //avVol.CreateChild(this, _T("Volume"), rc, 0, 0, LVS_NO_STRETCH_CANVAS);
@@ -364,6 +368,7 @@ public:
             _DV *ma30 = (*_ds)[_T("Close")].MA(30);
             avMcad.AddLine(new Line(ma30, RGB(0, 0, 200), _T("MA30")));
 
+            lvTest3.SetData(_ds);
         }
         return 0;
     }
@@ -503,13 +508,13 @@ public:
 
         DVS *ds = new DVS(rows - 1);
         // ds->Add(new DV<LSTR>(0, _T("Descriptions"), NULL, _T("%s")));
-        ds->Add(new DV<int>(0, _T("Date")));
-        ds->Add(new DV<float>(0, _T("Open"), NULL, _T("%.2f")));
-        ds->Add(new DV<float>(0, _T("Close"), NULL, _T("%.2f")));
-        ds->Add(new DV<float>(0, _T("High"), _T("High Price"), _T("%.2f")));
-        ds->Add(new DV<float>(0, _T("Low"), NULL, _T("%.2f")));
-        ds->Add(new DV<int>(0, _T("Volume")));
-        ds->Add(new DV<double>(0, _T("Amount"), NULL, _T("%.2f")));
+        ds->Add(new DV<int>(_T("Date")));
+        ds->Add(new DV<float>(_T("Open"), NULL, _T("%.2f")));
+        ds->Add(new DV<float>(_T("Close"), NULL, _T("%.2f")));
+        ds->Add(new DV<float>(_T("High"), _T("High Price"), _T("%.2f")));
+        ds->Add(new DV<float>(_T("Low"), NULL, _T("%.2f")));
+        ds->Add(new DV<int>(_T("Volume")));
+        ds->Add(new DV<double>(_T("Amount"), NULL, _T("%.2f")));
         DV<float> &dvO = *(DV<float>*)&(*ds)[1], 
             &dvC = *(DV<float>*)&(*ds)[2], 
             &dvH = *(DV<float>*)&(*ds)[3], 
@@ -517,6 +522,7 @@ public:
         DV<double> &dvAmount = *(DV<double>*)&(*ds)[6];
         DV<int> &dvDate = *(DV<int>*)&(*ds)[0], 
             &dvVol = *(DV<int>*)&(*ds)[5];
+        dvDate.SetTextFormat(format_date);
 
         while(!feof(f) && i < dvO.Size())
         {

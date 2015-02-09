@@ -78,6 +78,37 @@ public:
     }
 
     virtual VOID OnLayoutTabs() {}
+    BOOL LayoutLayer(Layer *layer, UINT& uDrawFlags)
+    {
+        if (_items.Count() == 0)
+            return TRUE;
+        LDC& dc = layer->dc;
+        // dc.TextOut(0, 0, _T("LMenu::DrawLayer"));
+        dc.SetBkMode(TRANSPARENT);
+        LFont ft(dc);
+        ft.CreateFont(_T("Times New Roman"), 19, FW_BOLD);
+
+        INT nBdrGap = 2;
+        LRect rcClient/*, rcInit(nBdrGap, nBdrGap, 100, 20)*/;
+        GetClientRect(rcClient);
+        rcClient.InflateRect(-nBdrGap, -nBdrGap);
+        dc.LayoutStrings<LMENUITEM>(_items, rcClient, rcClient, 20, TRUE, &_rcBound, 25);
+        /* make the last item on right-align if any */
+        LMENUITEM& mi = _items[_items.Count() - 1];
+        if ((LMI_FLAG_RIGHTALIGN & mi.nFlags) && mi.right < rcClient.right)
+        {
+            mi.Offset(rcClient.right - mi.right, 0);
+        }
+        // LPCTSTR lpText = _items[_items.Count() - 1];
+        OnLayoutTabs(); /* give the derived the change to modify the layouted regions */
+        //_rcBound.InflateRect(2, 2);
+
+        //ResetTrackingRngs();
+        //AddTrackingRng<LMENUITEM>(_items);
+        // uFlags &= ~REDRAW_CALCULATE;
+
+        return TRUE;
+    }
     virtual BOOL DrawLayer(Layer *layer, UINT& uFlags)
     {
         LDC& dc = layer->dc;
@@ -86,27 +117,27 @@ public:
         LFont ft(dc);
         ft.CreateFont(_T("Times New Roman"), 19, FW_BOLD);
 
-        if ((REDRAW_CALCULATE & uFlags) && _items.Count() > 0)
-        {
-            INT nBdrGap = 2;
-            LRect rcClient/*, rcInit(nBdrGap, nBdrGap, 100, 20)*/;
-            GetClientRect(rcClient);
-            rcClient.InflateRect(-nBdrGap, -nBdrGap);
-            dc.LayoutStrings<LMENUITEM>(_items, rcClient, rcClient, 20, TRUE, &_rcBound, 25);
-            /* make the last item on right-align if any */
-            LMENUITEM& mi = _items[_items.Count() - 1];
-            if ((LMI_FLAG_RIGHTALIGN & mi.nFlags) && mi.right < rcClient.right)
-            {
-                mi.Offset(rcClient.right - mi.right, 0);
-            }
-            // LPCTSTR lpText = _items[_items.Count() - 1];
-            OnLayoutTabs(); /* give the derived the change to modify the layouted regions */
-            //_rcBound.InflateRect(2, 2);
+        //if ((REDRAW_CALCULATE & uFlags) && _items.Count() > 0)
+        //{
+        //    INT nBdrGap = 2;
+        //    LRect rcClient/*, rcInit(nBdrGap, nBdrGap, 100, 20)*/;
+        //    GetClientRect(rcClient);
+        //    rcClient.InflateRect(-nBdrGap, -nBdrGap);
+        //    dc.LayoutStrings<LMENUITEM>(_items, rcClient, rcClient, 20, TRUE, &_rcBound, 25);
+        //    /* make the last item on right-align if any */
+        //    LMENUITEM& mi = _items[_items.Count() - 1];
+        //    if ((LMI_FLAG_RIGHTALIGN & mi.nFlags) && mi.right < rcClient.right)
+        //    {
+        //        mi.Offset(rcClient.right - mi.right, 0);
+        //    }
+        //    // LPCTSTR lpText = _items[_items.Count() - 1];
+        //    OnLayoutTabs(); /* give the derived the change to modify the layouted regions */
+        //    //_rcBound.InflateRect(2, 2);
 
-            //ResetTrackingRngs();
-            //AddTrackingRng<LMENUITEM>(_items);
-            // uFlags &= ~REDRAW_CALCULATE;
-        }
+        //    //ResetTrackingRngs();
+        //    //AddTrackingRng<LMENUITEM>(_items);
+        //    // uFlags &= ~REDRAW_CALCULATE;
+        //}
         //dc.Rectangle(_rcBound);
 
         for (int i = 0; i < _items.Count(); i++)

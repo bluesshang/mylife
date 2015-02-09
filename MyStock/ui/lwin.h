@@ -36,7 +36,7 @@
 #define MEMZERO_THIS() memset(this, 0, sizeof(*this))
 
 //#ifndef LWIN_ASSERT
-//#define LWIN_ASSERT _ASSERT
+//#define LWIN_ASSERT LWIN_ASSERT
 //#endif
 
 #define WM_LWIN_USER        WM_APP
@@ -200,6 +200,7 @@ class /*__declspec(novtable)*/ LWnd
 //private:
 //    UINT _ctrlStyles;
     LSyncMsgObj *_syncMsg;
+    BOOL _beingShown; /* ShowWindow was called, but window not displayed */
 //protected:
 //    inline DWORD_PTR GetThunkedProcPtr() { return(DWORD_PTR) _thunk.GetThunkedCodePtr(); }
 protected:
@@ -218,7 +219,7 @@ public:
     HINSTANCE m_hInstance;
 
     LWnd() : m_hWnd(NULL), m_hInstance(GetModuleHandle(NULL)), 
-        _uLWndStyle(0), _uCtrlStyle(0), _clrBkgrnd(GetSysColor(COLOR_MENUBAR)) {}
+        _uLWndStyle(0), _uCtrlStyle(0), _clrBkgrnd(GetSysColor(COLOR_MENUBAR)), _beingShown(FALSE) {}
     ~LWnd()
     {
         m_hWnd = NULL;
@@ -278,8 +279,8 @@ public:
     {
         LRect rc;
         for (int i = 0; i < childs.Count(); i++) {
-            //if (!childs[i]->IsWindowVisible())
-            //    continue;
+            if (!childs[i]->IsWindowVisible())
+                continue;
             GetChildRect(childs[i], rc);
             dc.ExcludeClipRect(rc);
         }
@@ -316,6 +317,7 @@ public:
         childs.Add(child);
     }
     BOOL ShowWindow(int nCmdShow) {
+        _beingShown = SW_SHOW == nCmdShow ? TRUE : FALSE;
         return ::ShowWindow(m_hWnd, nCmdShow);
     }
     BOOL InvalidateRect(RECT *lpRect, BOOL bErase = TRUE, BOOL redrawNow = FALSE) {
@@ -338,7 +340,8 @@ public:
         return ::SetCapture(m_hWnd);
     }
     BOOL IsWindowVisible() {
-        return ::IsWindowVisible(m_hWnd);
+        //return _beingShown;
+        return _beingShown || ::IsWindowVisible(m_hWnd);
     }
     int MessageBox(LPCTSTR lpText, LPCTSTR lpCaption = _T("MessageBox"), UINT uType = MB_OK | MB_ICONINFORMATION) {
         return ::MessageBox(m_hWnd, lpText, lpCaption, uType); 
@@ -770,7 +773,7 @@ public:
             _fInitilized = TRUE;
         }
         // BOOL r = JKRegisterClass();
-        //_ASSERT(FALSE != r);
+        //LWIN_ASSERT(FALSE != r);
     }
 
     ~LWindowImpl()
@@ -913,7 +916,7 @@ public:
                 // _hWndLastCreated : 通过_hWndLastCreated找到CLASSINFO,并修改其中的GCL_WNDPROC
                (VOID)SetClassLongPtr(hWndLastCreated, GCL_WNDPROC,(LONG) GetThunkedProcPtr()); // 必须要在CreateWindow之前设置
             }
-            _ASSERT(NULL != hWndLastCreated);
+            LWIN_ASSERT(NULL != hWndLastCreated);
         }
 
         // 创建后续窗体时，要设置正确的this指针

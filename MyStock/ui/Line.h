@@ -21,9 +21,9 @@ public:
     {
     }
     // int 
-    virtual INT GetMaxInt(BOOL all = FALSE) { return _dv->GetMaxInt(all); }
-    virtual INT GetMinInt(BOOL all = FALSE) { return _dv->GetMinInt(all); }
-    virtual INT Size(BOOL all = FALSE) { return _dv->Size(all); }
+    virtual INT GetMaxInt(BOOL part = TRUE) { return _dv->GetMaxInt(part); }
+    virtual INT GetMinInt(BOOL part = TRUE) { return _dv->GetMinInt(part); }
+    virtual INT Size(BOOL part = TRUE) { return _dv->Size(part); }
     virtual _DV* GetDV(LPCTSTR dvName) 
     {
         if (dvName == NULL)
@@ -144,7 +144,7 @@ public:
         // dc.MoveTo(0, dv[0]);
         // dc.MoveTo(ai.xwidth / 2, cy - (int)((double)(dv[0] - mi) * scale));
         dc.MoveTo(ai.d2x(0), ai.d2y(dv[0])/* - yOff*/);
-        for (int i = 1; i < _dv->Size(TRUE); i++) {
+        for (int i = 1; i < _dv->Size(FALSE); i++) {
             //int x = i * (ai.xwidth + 1) + ai.xwidth / 2;
             //if (ai.xwidth < 0)
             //    x = (int)((double)i * (double)cx / (double)_dv->Size());
@@ -189,9 +189,9 @@ public:
         //}
     }
 
-    INT GetMaxInt(BOOL all = FALSE) { return _high->GetMaxInt(all); }
-    INT GetMinInt(BOOL all = FALSE) { return _low->GetMinInt(all); }
-    INT Size(BOOL all = FALSE) { return _open->Size(all); }
+    INT GetMaxInt(BOOL part = TRUE) { return _high->GetMaxInt(part); }
+    INT GetMinInt(BOOL part = TRUE) { return _low->GetMinInt(part); }
+    INT Size(BOOL part = TRUE) { return _open->Size(part); }
 
     VOID Draw(LDC& dc, AxisInfo& ai)
     {

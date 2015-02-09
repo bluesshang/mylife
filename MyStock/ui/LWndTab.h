@@ -77,6 +77,27 @@ public:
         AddTrackingRng<LTABITEM>(layer, _tabs);
     }
 
+    BOOL LayoutLayer(Layer *layer, UINT& uDrawFlags)
+    {
+        LDC& dc = layer->dc;
+
+        LRect rcClient;//, rcInit(0, 0, 100, 20);
+        GetClientRect(rcClient);
+
+        LFont ft(dc);
+        ft.CreateFont(_T("Tahoma"), 13, FW_BOLD);
+        //rcClient.left += 10;
+        dc.LayoutStrings<LTABITEM>(_tabs, rcClient, rcClient, 10, TRUE, NULL, 
+            rcClient.Height(), (_uCtrlStyle & (LTS_LEFT | LTS_RIGHT)) ? TRUE : FALSE);
+        //_rcBound.InflateRect(2, 2);
+
+        // ResetTrackingRngs();
+        // AddTrackingRng<LTABITEM>(_tabs);
+        MarkDefaultActiveTab();
+
+        return TRUE;
+    }
+
     // VOID OnPaint(LDC& dc)
     BOOL DrawLayer(Layer *layer, UINT& uFlags)
     {
@@ -100,20 +121,20 @@ public:
         //}
         LRect rcClient;//, rcInit(0, 0, 100, 20);
         GetClientRect(rcClient);
-        if (REDRAW_CALCULATE & uFlags)
-        {
-            LFont ft(dc);
-            ft.CreateFont(_T("Tahoma"), 13, FW_BOLD);
-            //rcClient.left += 10;
-            dc.LayoutStrings<LTABITEM>(_tabs, rcClient, rcClient, 10, TRUE, NULL, 
-                rcClient.Height(), (_uCtrlStyle & (LTS_LEFT | LTS_RIGHT)) ? TRUE : FALSE);
-            //_rcBound.InflateRect(2, 2);
+        //if (REDRAW_CALCULATE & uFlags)
+        //{
+        //    LFont ft(dc);
+        //    ft.CreateFont(_T("Tahoma"), 13, FW_BOLD);
+        //    //rcClient.left += 10;
+        //    dc.LayoutStrings<LTABITEM>(_tabs, rcClient, rcClient, 10, TRUE, NULL, 
+        //        rcClient.Height(), (_uCtrlStyle & (LTS_LEFT | LTS_RIGHT)) ? TRUE : FALSE);
+        //    //_rcBound.InflateRect(2, 2);
 
-            // ResetTrackingRngs();
-            // AddTrackingRng<LTABITEM>(_tabs);
-            MarkDefaultActiveTab();
-            // uFlags &= ~REDRAW_CALCULATE;
-        }
+        //    // ResetTrackingRngs();
+        //    // AddTrackingRng<LTABITEM>(_tabs);
+        //    MarkDefaultActiveTab();
+        //    // uFlags &= ~REDRAW_CALCULATE;
+        //}
 
         for (i = 0; i < _tabs.Count(); i++)
         {
@@ -208,7 +229,7 @@ public:
 
     VOID SetActiveTab(int pos)
     {
-        _ASSERT(pos < _tabs.Count());
+        LWIN_ASSERT(pos < _tabs.Count());
         LTABITEM& ti = _tabs[pos];
         SetActiveTab(&ti);
     }

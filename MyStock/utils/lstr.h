@@ -1,7 +1,41 @@
 #pragma once
 
 #include "..\stdafx.h"
+#include "lutil.h"
 #include "lrect.h"
+
+//class LDate
+//{
+//    int _val;
+//public:
+//    LDate() : _val(0) {}
+//    //LDate(INT val) : _val(val) {}
+//    //void Format(LPCTSTR lpFmt, LPCTSTR lpText) /* used in DV::GetText  */
+//    //{
+//    //    //*this = lpText;
+//    //}
+//    operator INT() /* used in DV::GetInt  */
+//    {
+//        return _val;
+//    }
+//
+//    LDate& operator = (int val)
+//    {
+//        _val = val;
+//        return *this;
+//    }
+//    LDate& operator += (int val)
+//    {
+//        _val += val;
+//        return *this;
+//    }
+//    LDate& operator -= (int val)
+//    {
+//        _val -= val;
+//        return *this;
+//    }
+//    operator LPCTSTR() {return _T("LDate");}
+//};
 
 class LSTR
 {
@@ -23,7 +57,7 @@ protected:
             _size = _len + 1;
             delete[] _buf;
             _buf = new TCHAR[_size];
-            _ASSERT(NULL != _buf);
+            LWIN_ASSERT(NULL != _buf);
             _tcscpy(_buf, lpText);
         }
         else settext(_T(""));
@@ -86,6 +120,11 @@ public:
         Format(_T("%d"), i);
         return *this;
     }
+    LSTR& operator - (LSTR& str)
+    {
+        //Format(_T("%d"), i);
+        return *this;
+    }
     LSTR& operator = (float f)
     {
         Format(_T("%f"), f);
@@ -101,25 +140,31 @@ public:
     }
     LSTR& operator += (LSTR& s)
     {
-        _ASSERT(0);
+        LWIN_ASSERT(0);
         return *this;
     }
     LSTR& operator -= (LSTR& s)
     {
-        _ASSERT(0);
+        LWIN_ASSERT(0);
         return *this;
     }
     void Format(LPCTSTR lpFmt, LPCTSTR lpText) /* used in DV::GetText  */
     {
         *this = lpText;
     }
+    //void Format(LPCTSTR lpFmt, LDate dt) /* used in DV::GetText  */
+    //{
+    //    // *this = lpText;
+    //    INT v = dt;
+    //    Format(_T("%d/%d/%d"), v >> 16, (v >> 8) & 0xFF, v * 0xFF);
+    //}
     operator INT() /* used in DV::GetInt  */
     {
         return 0;
     }
     void Format(LPCTSTR lpFmt, ...)
     {
-        _ASSERT(_buf != NULL);
+        LWIN_ASSERT(_buf != NULL);
         va_list vp;
         va_start(vp, lpFmt);
         while ((_len = _vsntprintf(_buf, _size - 1, lpFmt, vp)) < 0) {
@@ -156,3 +201,9 @@ public:
         return Copy(rs);
     }
 };
+
+void format_date(LSTR& str, void *data)
+{
+    int dt = *(int*)data;
+    str.Format(_T("%d-%02d-%02d"), dt >> 16, (dt >> 8) & 0xff, dt & 0xff);
+}

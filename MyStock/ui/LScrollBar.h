@@ -80,8 +80,8 @@ public:
     VOID SetPos(INT pos, BOOL bRedraw = TRUE)
     {
         INT t;
-        _ASSERT(pos >= _minPos);
-        _ASSERT(pos <= _maxPos);
+        LWIN_ASSERT(pos >= _minPos);
+        LWIN_ASSERT(pos <= _maxPos);
         if (VERTICAL & _dir) {
             t = _rcThumb.Height();
             if (pos == _minPos)

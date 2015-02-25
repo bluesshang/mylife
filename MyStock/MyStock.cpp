@@ -11,6 +11,8 @@
 #include "StockHome.h"
 #include "FavoritedStock.h"
 
+#include "db\db_ora.h"
+
 // #define MAX_LOADSTRING 100
 
 //// Global Variables:
@@ -43,11 +45,13 @@ public:
 
 class MyStockApp : public LWndFrame<MyStockApp>
 {
-    StockHome *m_stkHome, stkHome2, stkHome3, stkHomeSH;
+    StockHome *m_stkHome, stkHome2, stkHome3, stkHomeSH, stkHome4, stkHome5, stkHome6;
     FavoritedStock *m_stkFav;
     LNativeMenu *m_menuMain;
     LWndDrawView *m_viewTest0;
     LWndTodo wndTodo;
+
+    LDB *_db;
 public:
     MyStockApp() // : LWndFrame<MyStockApp>(_T("MyStockApp"))
     {
@@ -184,7 +188,23 @@ public:
         stkHome3.CreateChild(this, _T("Frame:Home(SZ000043)"), rc, 1027, 0);
         pc->AddWnd(&stkHome3, NULL, RGB(255, 255, 255));
 
+        stkHome4.LoadData(_T("HYTX"));
+        stkHome4.SetFrameBorderColor(RGB(0, 0, 0));
+        stkHome4.SetFrameBorderWidth(1);
+        stkHome4.CreateChild(this, _T("HYTX"), rc, 1027, 0);
+        pc->AddWnd(&stkHome4, NULL, RGB(255, 255, 255));
+
+        stkHome5.LoadData(_T("SYZG"));
+        stkHome5.SetFrameBorderColor(RGB(0, 0, 0));
+        stkHome5.SetFrameBorderWidth(1);
+        stkHome5.CreateChild(this, _T("Sanyi"), rc, 1027, 0);
+        pc->AddWnd(&stkHome5, NULL, RGB(255, 255, 255));
+
         pc->SetActiveTabWnd(4);
+
+        _db = new OraDB(_T("Provider=OraOLEDB.Oracle.1;Password=3189271;User ID=SYSTEM;Data Source=MYSTOCK;Persist Security Info=True"));
+        DVS *dvs = _db->Fetch(_T("select * from stock_info where code like '%66'"));
+        delete dvs;
 #if 0
         //return 0;
         float H0[] = {1};
@@ -233,6 +253,8 @@ int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
     _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
     _CrtSetBreakAlloc(1);
 
+    HRESULT hr = CoInitialize(NULL);
+    LWIN_ASSERT(hr == S_OK);
     //__asm int 3;
     //int *p = new int[20];
     //int *t = (int*)malloc(40);
@@ -247,7 +269,9 @@ int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
     //rc.InflateRect(50, 50);
     //HRGN rgn = rc.CreateRoundRectRgn(50, 50);
     //app.SetWindowRgn(rgn);
-    return app.Run();
+    LRESULT ret = app.Run();
+    CoUninitialize();
+    return ret;
 }
 
 

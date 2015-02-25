@@ -87,6 +87,8 @@
     <Text Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="db\db_ora.h" />
+    <ClInclude Include="db\ldb.h" />
     <ClInclude Include="FavoritedStock.h" />
     <ClInclude Include="LWndTodo.h" />
     <ClInclude Include="MyStock.h" />

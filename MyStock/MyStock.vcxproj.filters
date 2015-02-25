@@ -19,6 +19,9 @@
     <Filter Include="utils">
       <UniqueIdentifier>{397882e6-9808-4c6f-b2e1-4abde5a57731}</UniqueIdentifier>
     </Filter>
+    <Filter Include="db">
+      <UniqueIdentifier>{e38ae6c1-3338-49b4-89cf-4f1978f8713d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <Text Include="ReadMe.txt" />
@@ -89,6 +92,12 @@
     </ClInclude>
     <ClInclude Include="utils\lutil.h">
       <Filter>utils</Filter>
+    </ClInclude>
+    <ClInclude Include="db\db_ora.h">
+      <Filter>db</Filter>
+    </ClInclude>
+    <ClInclude Include="db\ldb.h">
+      <Filter>db</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

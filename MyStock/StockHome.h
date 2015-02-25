@@ -11,6 +11,8 @@
 #include "ui\LListView.h"
 #include "ui\LAxisView.h"
 
+#include "db\db_ora.h"
+
 class LDlgViewStockOptions : public LDialogImpl<LDlgViewStockOptions>
 {
     LWndDrawView _lvew;
@@ -368,7 +370,15 @@ public:
             _DV *ma30 = (*_ds)[_T("Close")].MA(30);
             avMcad.AddLine(new Line(ma30, RGB(0, 0, 200), _T("MA30")));
 
-            lvTest3.SetData(_ds);
+            // lvTest3.SetData(_ds);
+            {
+                OraDB db(_T("Provider=OraOLEDB.Oracle.1;Password=3189271;User ID=SYSTEM;Data Source=MYSTOCK;Persist Security Info=True"));
+                //DVS *dvs = db.Fetch(_T("select id,code,name as share_name from stock_info where code like '%6'"));
+                DVS *dvs = db.Fetch(_T("select * from trade_day order by code"));
+                lvTest3.SetData(dvs);
+                //delete dvs;
+
+            }
         }
         return 0;
     }
